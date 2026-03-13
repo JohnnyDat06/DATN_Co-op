@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adb9c12a8c6c949f7af83a3d238359d0, type: 3}
+  m_Name: vFolders Data
+  m_EditorClassIdentifier: 
+  folderDatas_byGuid:
+    keys:
+    - e754bd201bd30e1428be11e7f306aff0
+    - 51524034d1725744fa2c560ed4b8bfaf
+    - 84f1f4d87eea1944d9731ee016192438
+    - 709f11a7f3c4041caa4ef136ea32d874
+    - 1c4ae6c88ad751c48ab79e38affe5ef2
+    - 0adf06804b33afd489da2cb930c2cf89
+    - aebdbbff14e10d842b7300a7f5f40d0f
+    - 32edb1b087561054db22db2e464e2509
+    - 6a96e4319b21fa7408ddb7a5612d347b
+    - 5b039c2eaaa35fe4a8a261f0844cf6a3
+    - 30d107ba51ba1e74fa9c7edad588e78c
+    - 30cd54fba0bbfd6458e465376ecce713
+    - e90a5c92396e99448a0a6c437985cf99
+    - 975f4e6625551784e802abb19ed61395
+    - ada7ea7482161874893166ab1306ef0b
+    - 469aebae1b189c64babbad141025c262
+    - 73990dcadb7d02e439fba072c219751a
+    - d4dfe44e346a7e44b8b42a8ec7c32fbb
+    - 6f7afc6ef12139140bf50fc983cd6cf6
+    - 62dd32f131b2a0d4f8fab614391e0bf9
+    - 5c1b9e019cadb8940ba29cddfbad5f40
+    values:
+    - colorIndex: 1
+      iconNameOrGuid: 
+    - colorIndex: 4
+      iconNameOrGuid: 
+    - colorIndex: 3
+      iconNameOrGuid: 
+    - colorIndex: 0
+      iconNameOrGuid: Settings Icon
+    - colorIndex: 1
+      iconNameOrGuid: AnimationClip Icon
+    - colorIndex: 3
+      iconNameOrGuid: RawImage Icon
+    - colorIndex: 2
+      iconNameOrGuid: AudioClip Icon
+    - colorIndex: 6
+      iconNameOrGuid: ScriptableObject Icon
+    - colorIndex: 7
+      iconNameOrGuid: Prefab Icon
+    - colorIndex: 8
+      iconNameOrGuid: SceneAsset Icon
+    - colorIndex: 4
+      iconNameOrGuid: cs Script Icon
+    - colorIndex: 0
+      iconNameOrGuid: Material Icon
+    - colorIndex: 0
+      iconNameOrGuid: PrefabModel Icon
+    - colorIndex: 0
+      iconNameOrGuid: Shader Icon
+    - colorIndex: 0
+      iconNameOrGuid: RawImage Icon
+    - colorIndex: 0
+      iconNameOrGuid: Font Icon
+    - colorIndex: 0
+      iconNameOrGuid: Font Icon
+    - colorIndex: 0
+      iconNameOrGuid: RawImage Icon
+    - colorIndex: 1
+      iconNameOrGuid: 
+    - colorIndex: 0
+      iconNameOrGuid: ScriptableObject Icon
+    - colorIndex: 0
+      iconNameOrGuid: Settings Icon
