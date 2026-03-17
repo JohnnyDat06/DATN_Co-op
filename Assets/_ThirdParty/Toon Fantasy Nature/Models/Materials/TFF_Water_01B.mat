@@ -80,3 +80,4 @@ Material:
     - _FresnelColor: {r: 0.19607843, g: 0.59992784, b: 0.6039216, a: 1}
     - _ShallowColor: {r: 0, g: 0.43644172, b: 0.4716981, a: 1}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
