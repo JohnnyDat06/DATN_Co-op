@@ -1,0 +1,44 @@
+/// <summary>
+/// RunState — Player đang chạy (Sprint).
+/// Chuyển sang Idle/Walk/GroundSlide/Jump tùy input.
+/// </summary>
+public class RunState : PlayerStateBase
+{
+    public RunState(PlayerStateMachine machine, PlayerInputHandler input)
+        : base(machine, input) { }
+
+    public override void Enter() { }
+
+    public override void Update()
+    {
+        // Jump
+        if (Input.JumpPressed)
+        {
+            Machine.TransitionTo(PlayerStateType.Jump);
+            return;
+        }
+
+        // Crouch while running → GroundSlide
+        if (Input.IsCrouching)
+        {
+            Machine.TransitionTo(PlayerStateType.GroundSlide);
+            return;
+        }
+
+        // Stop sprinting
+        if (!Input.IsSprinting)
+        {
+            Machine.TransitionTo(PlayerStateType.Walk);
+            return;
+        }
+
+        // Stop moving
+        if (!Input.IsMoving)
+        {
+            Machine.TransitionTo(PlayerStateType.Idle);
+            return;
+        }
+    }
+
+    public override void Exit() { }
+}
