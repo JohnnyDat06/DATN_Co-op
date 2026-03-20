@@ -4947,6 +4947,7 @@ GameObject:
   - component: {fileID: -2971111859242223833}
   - component: {fileID: 4348047999237622828}
   - component: {fileID: -200088596683272483}
+  - component: {fileID: 4200326829756738539}
   m_Layer: 3
   m_Name: Player_Host
   m_TagString: Player
@@ -5215,6 +5216,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _config: {fileID: 11400000, guid: 71adc98f0fcfe3d4cac84e6f7fd339ec, type: 2}
   _cameraLookTarget: {fileID: 9135478304180246980}
+--- !u!114 &4200326829756738539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6331376093302597881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkRigidbodyBaseExpanded: 0
+  UseRigidBodyForMotion: 0
+  AutoUpdateKinematicState: 1
+  AutoSetKinematicOnDespawn: 1
 --- !u!1 &6346669034698438194
 GameObject:
   m_ObjectHideFlags: 0

@@ -609,7 +609,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &385031426
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3076,7 +3076,7 @@ MonoBehaviour:
   NetworkConfig:
     ProtocolVersion: 0
     NetworkTransport: {fileID: 1850854096}
-    PlayerPrefab: {fileID: 7560633088603330182, guid: 8d1d9c6c07bc17740a6836a37de5bd94, type: 3}
+    PlayerPrefab: {fileID: 6331376093302597881, guid: 99e79403467bf1d40a5938ac30009c9f, type: 3}
     Prefabs:
       NetworkPrefabsLists:
       - {fileID: 11400000, guid: 2c05e841a4c859b49be9db4efea45bc7, type: 2}

@@ -1,4 +1,4 @@
-using Cinemachine;
+using Unity.Cinemachine;
 using UnityEngine;
 
 /// <summary>
@@ -13,7 +13,7 @@ public class SOCameraConfig : ScriptableObject
     public float BlendTime = 0.5f;
 
     [Tooltip("Kiểu blend (EaseInOut, Linear...)")]
-    public CinemachineBlendDefinition.Style BlendStyle = CinemachineBlendDefinition.Style.EaseInOut;
+    public CinemachineBlendDefinition.Styles BlendStyle = CinemachineBlendDefinition.Styles.EaseInOut;
 
     [Header("Follow Distance")]
     [Tooltip("Chiều dài Camera Arm (m) — chỉ áp dụng ThirdPerson")]

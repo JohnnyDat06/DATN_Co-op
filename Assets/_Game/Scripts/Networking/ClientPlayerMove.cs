@@ -30,7 +30,7 @@ public class ClientPlayerMove : NetworkBehaviour
             _playerInput.enabled = true;
             _starterAssetsInputs.enabled = true;
             _thirdPersonController.enabled = true;
-            //var _cinemachine = FindObjectOfType<Cinemachine.CinemachineVirtualCamera>();
+            //var _cinemachine = FindObjectOfType<Unity.Cinemachine.CinemachineCamera>();
             //_cinemachine.Follow = transform;
         }
 
