@@ -6,6 +6,7 @@ public class HostCientMenuTest : MonoBehaviour
 {
     [SerializeField] private Button hostButton;
     [SerializeField] private Button clientButton;
+    [SerializeField] private GameObject menu;
 
 
     private void Awake()
@@ -28,6 +29,6 @@ public class HostCientMenuTest : MonoBehaviour
 
     private void Hide()
     {
-        gameObject.SetActive(false);
+        menu.SetActive(false);
     }
 }

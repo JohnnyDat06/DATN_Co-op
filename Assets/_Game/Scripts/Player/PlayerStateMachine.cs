@@ -1,22 +1,29 @@
 using System;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
 /// PlayerStateMachine — quản lý trạng thái Player.
-/// Không Singleton — gắn trực tiếp lên Player prefab.
-/// Entry point duy nhất để đổi state: TransitionTo().
+/// Đồng bộ State qua NetworkVariable để proxy/client có thể chạy Animation theo Host.
 /// SRS §4.1.2 · §3.2
 /// </summary>
-public class PlayerStateMachine : MonoBehaviour
+public class PlayerStateMachine : NetworkBehaviour
 {
     [SerializeField] private PlayerInputHandler _inputHandler;
 
     private Dictionary<PlayerStateType, PlayerStateBase> _states;
     private PlayerStateBase _currentState;
 
+    // Biến đồng bộ trạng thái qua mạng
+    private NetworkVariable<PlayerStateType> _netState = new NetworkVariable<PlayerStateType>(
+        PlayerStateType.Idle,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner
+    );
+
     /// <summary>Trạng thái hiện tại của Player (read-only).</summary>
-    public PlayerStateType CurrentStateType { get; private set; }
+    public PlayerStateType CurrentStateType => _netState.Value;
 
     /// <summary>
     /// Chỉ active khi Player đang trong MountainPlatformerZone (Màn 3).
@@ -51,15 +58,46 @@ public class PlayerStateMachine : MonoBehaviour
             { PlayerStateType.Dead,         new DeadState(this, _inputHandler) },
             { PlayerStateType.Respawning,   new RespawningState(this, _inputHandler) },
         };
+    }
 
-        CurrentStateType = PlayerStateType.Idle;
-        _currentState = _states[PlayerStateType.Idle];
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        _netState.OnValueChanged += OnStateValueChanged;
+        
+        // Khởi tạo state đầu tiên
+        _currentState = _states[CurrentStateType];
         _currentState.Enter();
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        _netState.OnValueChanged -= OnStateValueChanged;
+    }
+
+    private void OnStateValueChanged(PlayerStateType oldState, PlayerStateType newState)
+    {
+        // Chạy trên mọi máy (kể cả proxy) khi NetworkVariable thay đổi
+        _currentState?.Exit();
+        _currentState = _states[newState];
+        _currentState.Enter();
+        OnStateChanged?.Invoke(oldState, newState);
+
+#if UNITY_EDITOR || DEBUG_BUILD
+        Debug.Log($"[PlayerFSM] {oldState} → {newState} (Sync)");
+#endif
     }
 
     private void Update()
     {
-        _currentState?.Update();
+        if (!IsSpawned) return;
+        
+        // Chỉ owner mới chạy logic Update của State (để tự thân nó đổi State qua TransitionTo)
+        if (IsOwner)
+        {
+            _currentState?.Update();
+        }
     }
 
     /// <summary>
@@ -68,17 +106,10 @@ public class PlayerStateMachine : MonoBehaviour
     /// </summary>
     public void TransitionTo(PlayerStateType newState)
     {
+        if (!IsOwner) return; // Chỉ owner mới được đổi state
         if (newState == CurrentStateType) return;
 
-        var from = CurrentStateType;
-        _currentState.Exit();
-        CurrentStateType = newState;
-        _currentState = _states[newState];
-        _currentState.Enter();
-        OnStateChanged?.Invoke(from, newState);
-
-#if UNITY_EDITOR || DEBUG_BUILD
-        Debug.Log($"[PlayerFSM] {from} → {newState}");
-#endif
+        // Thay đổi giá trị qua mạng, nó sẽ tự động kích hoạt OnStateValueChanged trên tất cả các Client (BAO GỒM CẢ BẢN THÂN OWNER)
+        _netState.Value = newState;
     }
 }

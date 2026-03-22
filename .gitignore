@@ -177,3 +177,5 @@ Packages/com.bezi.sidekick/package.json.meta
 Packages/com.bezi.sidekick/README.md.meta
 Packages/packages-lock.json
 Packages/packages-lock.json
+/.idea
+/.agent

@@ -95,9 +95,8 @@ public static class EventBus
 
     /// <summary>
     /// Publisher: CameraZoneTrigger, CutSceneManager | Subscriber: CameraManager
-    /// TODO: replace int with CameraPreset enum (T2-1)
     /// </summary>
-    public static event Action<int> OnCameraPresetChanged;
+    public static event Action<CameraPreset> OnCameraPresetChanged;
 
     /// <summary>
     /// Publisher: CameraSettingsService | Subscriber: VCam
@@ -108,9 +107,8 @@ public static class EventBus
 
     /// <summary>
     /// Publisher: PlayerController, Environment | Subscriber: ScreenShakeController
-    /// TODO: replace int with ScreenShakeData struct (T5-3)
     /// </summary>
-    public static event Action<int> OnScreenShakeRequested;
+    public static event Action<SOScreenShakeConfig> OnScreenShakeRequested;
 
     // ─── CutScene ─────────────────────────────────────────────────────────────
 
@@ -190,16 +188,16 @@ public static class EventBus
         => OnClientDisconnected?.Invoke(clientId);
 
     /// <summary>CameraZoneTrigger/CutSceneManager raises này để đổi camera preset.</summary>
-    public static void RaiseCameraPresetChanged(int presetId)
-        => OnCameraPresetChanged?.Invoke(presetId);
+    public static void RaiseCameraPresetChanged(CameraPreset preset)
+        => OnCameraPresetChanged?.Invoke(preset);
 
     /// <summary>CameraSettingsService raises this khi camera settings thay đổi.</summary>
     public static void RaiseCameraSettingsChanged()
         => OnCameraSettingsChanged?.Invoke();
 
     /// <summary>PlayerController/Environment raises this để yêu cầu screen shake.</summary>
-    public static void RaiseScreenShakeRequested(int shakeDataId)
-        => OnScreenShakeRequested?.Invoke(shakeDataId);
+    public static void RaiseScreenShakeRequested(SOScreenShakeConfig shakeConfig)
+        => OnScreenShakeRequested?.Invoke(shakeConfig);
 
     /// <summary>CutSceneManager raises this khi cutscene bắt đầu.</summary>
     public static void RaiseCutSceneStarted()

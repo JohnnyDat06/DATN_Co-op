@@ -80,10 +80,10 @@ public static class Constants
     /// <summary>Hằng số camera.</summary>
     public static class Camera
     {
-        public const float DEFAULT_SENSITIVITY_X = 1.0f;
-        public const float DEFAULT_SENSITIVITY_Y = 0.8f;
-        public const float MIN_SENSITIVITY       = 0.1f;
-        public const float MAX_SENSITIVITY       = 3.0f;
+        public const float DEFAULT_SENSITIVITY_X = 5f;
+        public const float DEFAULT_SENSITIVITY_Y = 5f;
+        public const float MIN_SENSITIVITY       = 0.01f;
+        public const float MAX_SENSITIVITY       = 100f; // Tăng giới hạn lên cao để test
         public const float MIN_ARM_LENGTH        = 3f;
         public const float MAX_ARM_LENGTH        = 7f;
         public const float DEFAULT_ARM_LENGTH    = 5f;
