@@ -32,7 +32,11 @@ public class PlayerModel : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        ApplyModel(IsHost);
+
+        // Lấy ID chủ sở hữu của NetworkObject này.
+        // NẾU thuộc về ServerClientId (thường là 0) -> là nhân vật của Host. Ngược lại là của Client.
+        bool isHostPlayer = OwnerClientId == NetworkManager.ServerClientId;
+        ApplyModel(isHostPlayer);
     }
 
     private void ApplyModel(bool isHost)

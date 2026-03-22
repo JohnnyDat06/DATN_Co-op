@@ -25,6 +25,9 @@ public class SOPlayerConfig : ScriptableObject
     [Tooltip("Lực nhảy (áp lên Rigidbody AddForce)")]
     public float JumpForce = 7f;
 
+    [Tooltip("Lực nhảy lần 2 (áp lên Rigidbody AddForce)")]
+    public float DoubleJumpForce = 7f;
+
     [Tooltip("Số lần nhảy tối đa (1 = không double jump, 2 = có double jump)")]
     public int MaxJumpCount = 2;
 

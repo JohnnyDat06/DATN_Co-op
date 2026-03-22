@@ -11,7 +11,7 @@ public class ClientPlayerMove : NetworkBehaviour
     [SerializeField] private ThirdPersonController _thirdPersonController;
     //[SerializeField] private Transform _rootCamera;
 
-    private bool _lastJumpState;
+    //private bool _lastJumpState;
 
     private void Awake()
     {
@@ -23,7 +23,7 @@ public class ClientPlayerMove : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        _lastJumpState = false;
+        //_lastJumpState = false;
         
         if (IsOwner)
         {

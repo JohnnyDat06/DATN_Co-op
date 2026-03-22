@@ -10,8 +10,11 @@ using UnityEngine;
 public class PlayerAnimator : MonoBehaviour
 {
     [SerializeField] private PlayerStateMachine _fsm;
+    [SerializeField, Min(0f)] private float _speedDampTime = 0.08f;
 
     private Animator _animator;
+    private PlayerController _controller;
+    private Rigidbody _rb;
     private PlayerStateType _previousState;
 
     // Animator Parameter Name Constants — dùng hash để tránh typo, tăng hiệu năng
@@ -20,11 +23,13 @@ public class PlayerAnimator : MonoBehaviour
     private static readonly int IS_CROUCHING    = Animator.StringToHash("IsCrouching");
     private static readonly int IS_GLIDING      = Animator.StringToHash("IsGliding");
     private static readonly int IS_DEAD         = Animator.StringToHash("IsDead");
-    private static readonly int JUMP_TRIGGER    = Animator.StringToHash("JumpTrigger");
+    private static readonly int JUMP_BOOL       = Animator.StringToHash("Jump");
+    private static readonly int FREE_FALL_BOOL  = Animator.StringToHash("FreeFall");
     private static readonly int DJUMP_TRIGGER   = Animator.StringToHash("DoubleJumpTrigger");
     private static readonly int WJUMP_TRIGGER   = Animator.StringToHash("WallJumpTrigger");
     private static readonly int SLIDE_TRIGGER   = Animator.StringToHash("SlideTrigger");
     private static readonly int RESPAWN_TRIGGER = Animator.StringToHash("RespawnTrigger");
+    private static readonly int VERTICAL_SPEED  = Animator.StringToHash("VerticalSpeed");
 
     private void Awake()
     {
@@ -36,6 +41,9 @@ public class PlayerAnimator : MonoBehaviour
             _fsm = GetComponent<PlayerStateMachine>();
         }
 
+        _controller = GetComponent<PlayerController>();
+        _rb = GetComponent<Rigidbody>();
+
         _previousState = PlayerStateType.Idle;
     }
 
@@ -45,21 +53,43 @@ public class PlayerAnimator : MonoBehaviour
 
         var currentState = _fsm.CurrentStateType;
 
-        // Luôn update Speed float cho Blend Tree mượt
-        _animator.SetFloat(SPEED, StateToSpeed(currentState));
+        float targetSpeed = StateToSpeed(currentState);
+        _animator.SetFloat(SPEED, targetSpeed, _speedDampTime, Time.deltaTime);
 
-        // Luôn update bools
-        _animator.SetBool(IS_GROUNDED,  IsGroundedState(currentState));
+        bool isGrounded = _controller != null ? _controller.IsGrounded : IsGroundedState(currentState);
+        
+        float verticalSpeed = _rb != null ? _rb.linearVelocity.y : 0f;
+        
+        // Multiplayer Proxy Client sẽ bị NetworkTransform thiết lập vị trí mà không sinh vận tốc Rigidbody.
+        // Căn cứ hoàn toàn vào FSM State được đồng bộ qua mạng để chạy Animation chuẩn xác.
+        bool isJumpRising  = currentState is PlayerStateType.Jump or PlayerStateType.DoubleJump or PlayerStateType.WallJump;
+        bool isFreeFalling = !isGrounded && verticalSpeed <= 0.01f;
+
+        if (currentState == PlayerStateType.WallHang || currentState == PlayerStateType.WallJump)
+        {
+             if (currentState == PlayerStateType.WallHang)
+             {
+                 isJumpRising = false;
+                 isFreeFalling = false;
+             }
+        }
+
+        _animator.SetBool(IS_GROUNDED, isGrounded);
         _animator.SetBool(IS_CROUCHING, currentState is PlayerStateType.CrouchIdle or PlayerStateType.CrouchWalk);
         _animator.SetBool(IS_GLIDING,   currentState == PlayerStateType.AirGlide);
         _animator.SetBool(IS_DEAD,      currentState == PlayerStateType.Dead);
+
+        // Always set parameters instead of caching the existence check, 
+        // to prevent bugs if the animator controller is swapped dynamically.
+        _animator.SetBool(JUMP_BOOL, isJumpRising);
+        _animator.SetBool(FREE_FALL_BOOL, isFreeFalling);
+        _animator.SetFloat(VERTICAL_SPEED, verticalSpeed);
 
         // Triggers — chỉ set khi ENTER state (previous → current)
         if (currentState != _previousState)
         {
             switch (currentState)
             {
-                case PlayerStateType.Jump:        _animator.SetTrigger(JUMP_TRIGGER);    break;
                 case PlayerStateType.DoubleJump:  _animator.SetTrigger(DJUMP_TRIGGER);   break;
                 case PlayerStateType.WallJump:    _animator.SetTrigger(WJUMP_TRIGGER);   break;
                 case PlayerStateType.GroundSlide: _animator.SetTrigger(SLIDE_TRIGGER);   break;

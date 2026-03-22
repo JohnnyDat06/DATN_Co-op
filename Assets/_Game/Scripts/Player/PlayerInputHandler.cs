@@ -1,14 +1,17 @@
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
 /// PlayerInputHandler — layer duy nhất được phép đọc input.
 /// Các class khác chỉ hỏi Handler, KHÔNG BAO GIỜ gọi InputSystem trực tiếp.
+/// Yêu cầu: CHỈ CHẠY trên máy khách là LẤY QUYỀN SỞ HỮU (IsOwner) của bản sao Player này.
 /// SRS §4.1.5
 /// </summary>
-public class PlayerInputHandler : MonoBehaviour
+public class PlayerInputHandler : NetworkBehaviour
 {
     [SerializeField] private InputActionAsset _inputActions;
+    [SerializeField, Min(0f)] private float _jumpBufferDuration = 0.12f;
 
     // Cached InputActions
     private InputAction _moveAction;
@@ -20,6 +23,7 @@ public class PlayerInputHandler : MonoBehaviour
     private InputAction _cameraLookAction;
 
     private bool _inputLocked;
+    private float _jumpBufferTimer;
 
     // ─── Movement Properties (read-only cho class khác) ──────────────────────
 
@@ -83,26 +87,32 @@ public class PlayerInputHandler : MonoBehaviour
         _cameraLookAction = playerMap.FindAction("CameraLook");
     }
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        EnableInputActions();
+        base.OnNetworkSpawn();
+        if (IsOwner)
+        {
+            EnableInputActions();
+            EventBus.OnCutSceneStarted += LockAllInput;
+            EventBus.OnCutSceneEnded   += UnlockAllInput;
+        }
     }
 
-    private void OnEnable()
+    public override void OnNetworkDespawn()
     {
-        EventBus.OnCutSceneStarted += LockAllInput;
-        EventBus.OnCutSceneEnded   += UnlockAllInput;
-    }
-
-    private void OnDisable()
-    {
-        EventBus.OnCutSceneStarted -= LockAllInput;
-        EventBus.OnCutSceneEnded   -= UnlockAllInput;
-        DisableInputActions();
+        base.OnNetworkDespawn();
+        if (IsOwner)
+        {
+            EventBus.OnCutSceneStarted -= LockAllInput;
+            EventBus.OnCutSceneEnded   -= UnlockAllInput;
+            DisableInputActions();
+        }
     }
 
     private void Update()
     {
+        if (!IsSpawned || !IsOwner) return;
+
         if (_inputLocked)
         {
             ClearAllInput();
@@ -114,8 +124,9 @@ public class PlayerInputHandler : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!IsSpawned || !IsOwner) return;
+
         // Reset consumed properties sau mỗi frame
-        JumpPressed     = false;
         InteractPressed = false;
         PausePressed    = false;
     }
@@ -132,7 +143,15 @@ public class PlayerInputHandler : MonoBehaviour
 
         // Actions (consumed — chỉ true 1 frame)
         if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
-            JumpPressed = true;
+        {
+            _jumpBufferTimer = _jumpBufferDuration;
+        }
+
+        if (_jumpBufferTimer > 0f)
+        {
+            _jumpBufferTimer -= Time.deltaTime;
+        }
+        JumpPressed = _jumpBufferTimer > 0f;
 
         JumpHeld = _jumpAction?.IsPressed() ?? false;
 
@@ -156,6 +175,7 @@ public class PlayerInputHandler : MonoBehaviour
         IsCrouching     = false;
         JumpPressed     = false;
         JumpHeld        = false;
+        _jumpBufferTimer = 0f;
         InteractPressed = false;
         PausePressed    = false;
         CameraLookDelta = Vector2.zero;
@@ -186,6 +206,21 @@ public class PlayerInputHandler : MonoBehaviour
     public void UnlockAllInput()
     {
         _inputLocked = false;
+    }
+
+    /// <summary>
+    /// Dùng cho code vật lý (FixedUpdate): đọc và consume jump buffered.
+    /// </summary>
+    public bool ConsumeJumpPressed()
+    {
+        if (_jumpBufferTimer <= 0f)
+        {
+            return false;
+        }
+
+        _jumpBufferTimer = 0f;
+        JumpPressed = false;
+        return true;
     }
 
     // ─── Enable/Disable Actions ──────────────────────────────────────────────

@@ -13,10 +13,11 @@ MonoBehaviour:
   m_Name: SOPlayerConfig_Default
   m_EditorClassIdentifier: 
   MaxHealth: 100
-  MoveSpeed: 5
+  MoveSpeed: 4
   SprintMultiplier: 1.6
-  CrouchSpeedMultiplier: 0.5
-  JumpForce: 7
+  CrouchSpeedMultiplier: 0.3
+  JumpForce: 14
+  DoubleJumpForce: 14
   MaxJumpCount: 2
   GlideGravityScale: 0.2
   WallJumpHorizontalForce: 5

@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
@@ -9,7 +10,7 @@ using UnityEngine;
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(CapsuleCollider))]
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private SOPlayerConfig _config;
@@ -58,10 +59,17 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (!IsSpawned) return;
+
         // Guard: skip khi Dead/Respawning
         if (_fsm.CurrentStateType is PlayerStateType.Dead or PlayerStateType.Respawning) return;
 
+        // Cả Host và Client đều tính toán Ground và Wall để phục vụ Animation local được siêu mượt
         CheckGrounded();
+        CheckWall();
+
+        // Từ đoạn này trở xuống: Liên quan đến tác động vật lý (thay đổi vận tốc, ép lực), CHỈ OWNER được làm:
+        if (!IsOwner) return;
         HandleCrouch();
         HandleGroundSlide();
         HandleJump();
@@ -70,25 +78,52 @@ public class PlayerController : MonoBehaviour
         HandleMovement(); // Luôn cuối cùng — override velocity sau các force
     }
 
+    private void CheckWall()
+    {
+        _isTouchingWall = false;
+
+        if (_input.MoveInput.sqrMagnitude < 0.01f) return;
+
+        var cam = Camera.main;
+        if (cam == null) return;
+
+        var camForward = cam.transform.forward;
+        var camRight   = cam.transform.right;
+        camForward.y = 0f;
+        camRight.y   = 0f;
+        camForward.Normalize();
+        camRight.Normalize();
+
+        Vector3 moveDir = (camForward * _input.MoveInput.y + camRight * _input.MoveInput.x).normalized;
+        Vector3 origin = transform.position + Vector3.up * (_capsule.height * 0.5f);
+        
+        // Dùng SphereCast quét theo đúng hướng nhân vật đang cố đi tới
+        if (Physics.SphereCast(origin, _capsule.radius * 0.9f, moveDir, out var hit, 0.3f,
+            LayerMask.GetMask(Constants.Layers.ENVIRONMENT, "Default")))
+        {
+            _isTouchingWall = true;
+            _wallNormal = hit.normal;
+        }
+    }
+
     // ─── HandleMovement — Camera-relative movement ───────────────────────────
 
     private void HandleMovement()
     {
+        if (_fsm.CurrentStateType == PlayerStateType.WallHang) return;
+
         if (_input.MoveInput.sqrMagnitude < 0.01f)
         {
-            // Dừng ngang khi không có input (giữ Y velocity)
             _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
             return;
         }
 
-        // Lấy forward/right từ camera hiện tại (Cinemachine Brain output)
         var cam = Camera.main;
         if (cam == null) return;
 
         var camForward = cam.transform.forward;
         var camRight   = cam.transform.right;
 
-        // Project xuống mặt phẳng ngang (loại bỏ Y)
         camForward.y = 0f;
         camRight.y   = 0f;
         camForward.Normalize();
@@ -106,8 +141,20 @@ public class PlayerController : MonoBehaviour
             _                          => _config.MoveSpeed,
         };
 
-        // Apply velocity ngang — giữ velocity Y hiện tại
         var targetVel = moveDir * speed;
+
+        // Xử lý chống trượt: NẾU ĐANG CHẠM TƯỜNG & HƯỚNG ĐI ĐÂM VÀO TƯỜNG -> CHIẾU (SLIDE) VẬN TỐC THEO MẶT TƯỜNG
+        if (_isTouchingWall && Vector3.Dot(moveDir, _wallNormal) < 0f)
+        {
+            targetVel = Vector3.ProjectOnPlane(targetVel, _wallNormal);
+            // Chuẩn hóa lại tốc độ để không bị giảm tốc độ dọc theo mặt phẳng tường
+            if (targetVel.sqrMagnitude > 0.01f)
+            {
+                targetVel = targetVel.normalized * speed;
+            }
+        }
+
+        // Apply velocity ngang — giữ velocity Y hiện tại
         _rb.linearVelocity = new Vector3(targetVel.x, _rb.linearVelocity.y, targetVel.z);
 
         // Xoay Player về hướng di chuyển (Slerp — KHÔNG xoay theo camera)
@@ -125,16 +172,27 @@ public class PlayerController : MonoBehaviour
         if (!_input.JumpPressed) return;
 
         bool canJump = _isGrounded && _jumpCount == 0;
-        bool canDoubleJump = !_isGrounded && _jumpCount == 1 && _jumpCount < _config.MaxJumpCount;
+        bool canDoubleJump = !_isGrounded && _jumpCount < _config.MaxJumpCount;
 
         if (canJump || canDoubleJump)
         {
+            _input.ConsumeJumpPressed();
+
             // Reset Y velocity trước khi nhảy để lực nhất quán
             _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
-            _rb.AddForce(Vector3.up * _config.JumpForce, ForceMode.Impulse);
-            _jumpCount++;
 
-            var newState = canDoubleJump ? PlayerStateType.DoubleJump : PlayerStateType.Jump;
+            bool isFirstJump = _jumpCount == 0;
+
+            // Xác định lực nhảy dựa trên jump count
+            float force = isFirstJump ? _config.JumpForce : _config.DoubleJumpForce;
+            _rb.AddForce(Vector3.up * force, ForceMode.Impulse);
+            
+            _jumpCount++;
+            
+            // Đảm bảo không còn ở mặt đất sau khi nhảy
+            _isGrounded = false;
+
+            var newState = isFirstJump ? PlayerStateType.Jump : PlayerStateType.DoubleJump;
             _fsm.TransitionTo(newState);
         }
     }
@@ -254,6 +312,7 @@ public class PlayerController : MonoBehaviour
         // WallJump
         if (_fsm.CurrentStateType == PlayerStateType.WallHang && _input.JumpPressed)
         {
+            _input.ConsumeJumpPressed();
             _rb.useGravity = true;
             var jumpDir = (_wallNormal + Vector3.up).normalized;
             _rb.AddForce(jumpDir * _config.WallJumpVerticalForce
@@ -275,12 +334,24 @@ public class PlayerController : MonoBehaviour
 
     private void CheckGrounded()
     {
-        // SphereCast xuống chân
+        // Khi đang nhảy lên (Velocity Y > 0), tạm thời coi như không chạm đất để tránh reset state xuống Idle/Walk ngay lập tức
+        if (_rb.linearVelocity.y > 0.1f)
+        {
+            _isGrounded = false;
+            return;
+        }
+
+        // Bắt đầu SphereCast từ vị trí ngang tâm capsule để tránh collider chồng chéo ngay lúc đầu
         float radius  = _capsule.radius * 0.9f;
-        float originY = transform.position.y + radius;
+        Vector3 origin = transform.position + Vector3.up * (_capsule.height * 0.5f);
+        float castDistance = (_capsule.height * 0.5f) - radius + 0.2f;
+
         _isGrounded = Physics.SphereCast(
-            new Vector3(transform.position.x, originY, transform.position.z),
-            radius, Vector3.down, out _, 0.2f,
+            origin, 
+            radius, 
+            Vector3.down, 
+            out _, 
+            castDistance,
             LayerMask.GetMask(Constants.Layers.ENVIRONMENT, "Default"));
 
         if (_isGrounded)
