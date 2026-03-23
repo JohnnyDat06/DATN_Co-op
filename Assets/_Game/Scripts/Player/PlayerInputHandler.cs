@@ -12,6 +12,7 @@ public class PlayerInputHandler : NetworkBehaviour
 {
     [SerializeField] private InputActionAsset _inputActions;
     [SerializeField, Min(0f)] private float _jumpBufferDuration = 0.12f;
+    [SerializeField] private SOPlayerConfig _config;
 
     // Cached InputActions
     private InputAction _moveAction;
@@ -21,9 +22,11 @@ public class PlayerInputHandler : NetworkBehaviour
     private InputAction _interactAction;
     private InputAction _pauseAction;
     private InputAction _cameraLookAction;
+    private InputAction _dashAction;
 
-    private bool _inputLocked;
+    private bool  _inputLocked;
     private float _jumpBufferTimer;
+    private float _dashBufferTimer;
 
     // ─── Movement Properties (read-only cho class khác) ──────────────────────
 
@@ -52,6 +55,9 @@ public class PlayerInputHandler : NetworkBehaviour
 
     /// <summary>Pause down this frame.</summary>
     public bool PausePressed { get; private set; }
+
+    /// <summary>Dash pressed this frame.</summary>
+    public bool DashPressed { get; private set; }
 
     // ─── Camera Properties ───────────────────────────────────────────────────
 
@@ -85,6 +91,7 @@ public class PlayerInputHandler : NetworkBehaviour
         _interactAction   = playerMap.FindAction("Interact");
         _pauseAction      = playerMap.FindAction("Pause");
         _cameraLookAction = playerMap.FindAction("CameraLook");
+        _dashAction       = playerMap.FindAction("Dash");
     }
 
     public override void OnNetworkSpawn()
@@ -161,6 +168,18 @@ public class PlayerInputHandler : NetworkBehaviour
         if (_pauseAction != null && _pauseAction.WasPressedThisFrame())
             PausePressed = true;
 
+        // Dash buffer — giống jump buffer để không miss FixedUpdate frame
+        if (_dashAction != null && _dashAction.WasPressedThisFrame())
+        {
+            _dashBufferTimer = _config != null ? _config.DashInputBuffer : 0.15f;
+        }
+
+        if (_dashBufferTimer > 0f)
+        {
+            _dashBufferTimer -= Time.deltaTime;
+        }
+        DashPressed = _dashBufferTimer > 0f;
+
         // Camera
         CameraLookDelta = CameraLookEnabled
             ? (_cameraLookAction?.ReadValue<Vector2>() ?? Vector2.zero)
@@ -169,16 +188,18 @@ public class PlayerInputHandler : NetworkBehaviour
 
     private void ClearAllInput()
     {
-        MoveInput       = Vector2.zero;
-        IsMoving        = false;
-        IsSprinting     = false;
-        IsCrouching     = false;
-        JumpPressed     = false;
-        JumpHeld        = false;
+        MoveInput        = Vector2.zero;
+        IsMoving         = false;
+        IsSprinting      = false;
+        IsCrouching      = false;
+        JumpPressed      = false;
+        JumpHeld         = false;
         _jumpBufferTimer = 0f;
-        InteractPressed = false;
-        PausePressed    = false;
-        CameraLookDelta = Vector2.zero;
+        _dashBufferTimer = 0f;
+        DashPressed      = false;
+        InteractPressed  = false;
+        PausePressed     = false;
+        CameraLookDelta  = Vector2.zero;
     }
 
     // ─── Public Methods ──────────────────────────────────────────────────────
@@ -213,13 +234,20 @@ public class PlayerInputHandler : NetworkBehaviour
     /// </summary>
     public bool ConsumeJumpPressed()
     {
-        if (_jumpBufferTimer <= 0f)
-        {
-            return false;
-        }
-
+        if (_jumpBufferTimer <= 0f) return false;
         _jumpBufferTimer = 0f;
         JumpPressed = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Dùng cho code vật lý (FixedUpdate): đọc và consume dash buffer.
+    /// </summary>
+    public bool ConsumeDashPressed()
+    {
+        if (_dashBufferTimer <= 0f) return false;
+        _dashBufferTimer = 0f;
+        DashPressed = false;
         return true;
     }
 

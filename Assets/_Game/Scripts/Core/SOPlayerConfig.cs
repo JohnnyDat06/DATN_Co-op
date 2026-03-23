@@ -48,4 +48,27 @@ public class SOPlayerConfig : ScriptableObject
 
     [Tooltip("Lực quán tính ban đầu của Slide")]
     public float GroundSlideForce = 12f;
+
+    [Header("Air Dash")]
+    [Tooltip("Khoảng cách dash trên không (m)")]
+    public float DashDistance = 6f;
+
+    [Tooltip("Thời gian thực hiện air dash (giây)")]
+    public float DashDuration = 0.2f;
+
+    [Tooltip("Cooldown giữa hai lần dash (giây) — dùng chung cho cả air và roll")]
+    public float DashCooldown = 1.0f;
+
+    [Tooltip("Thời gian buffer input Dash/Roll (giây)")]
+    public float DashInputBuffer = 0.15f;
+
+    [Header("Ground Roll")]
+    [Tooltip("Khoảng cách roll (m)")]
+    public float RollDistance = 3f;
+
+    [Tooltip("Thời gian roll (giây) — nên khớp với độ dài animation Player_Roll.anim")]
+    public float RollDuration = 1.467f;
+
+    [Tooltip("Cooldown riêng cho roll (giây)")]
+    public float RollCooldown = 1.5f;
 }

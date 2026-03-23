@@ -24,11 +24,24 @@ public class PlayerController : NetworkBehaviour
     // Runtime state
     private int     _jumpCount;
     private bool    _isGrounded;
-    private bool    _glideUsed;          // true sau khi dùng glide 1 lần, reset khi chạm đất
+    private bool    _glideUsed;
     private bool    _isCrouching;
     private float   _slideTimer;
     private bool    _isTouchingWall;
     private Vector3 _wallNormal;
+
+    // Air dash state
+    private bool    _dashUsed;
+    private float   _dashTimer;
+    private float   _dashCooldownTimer;
+    private Vector3 _dashVelocity;
+
+    // Ground roll state
+    private float   _rollTimer;
+    private float   _rollCooldownTimer;
+    private Vector3 _rollDirection;
+    private float   _rollStartSpeed;    // tốc độ ngang lúc bắt đầu roll (walk/run speed)
+    private float   _rollBoostSpeed;    // tốc độ boost thêm từ config (đỉnh curve)
 
     // Capsule original values (để restore sau Crouch)
     private float   _originalCapsuleHeight;
@@ -73,6 +86,8 @@ public class PlayerController : NetworkBehaviour
         HandleCrouch();
         HandleGroundSlide();
         HandleJump();
+        HandleRoll();
+        HandleAirDash();
         HandleAirGlide();
         HandleWallClimb();
         HandleMovement(); // Luôn cuối cùng — override velocity sau các force
@@ -110,7 +125,10 @@ public class PlayerController : NetworkBehaviour
 
     private void HandleMovement()
     {
-        if (_fsm.CurrentStateType == PlayerStateType.WallHang) return;
+        // Block hoàn toàn khi đang dash hoặc roll — velocity do handle riêng kiểm soát
+        if (_fsm.CurrentStateType is PlayerStateType.WallHang
+                                  or PlayerStateType.DashInAir
+                                  or PlayerStateType.DashOnGround) return;
 
         if (_input.MoveInput.sqrMagnitude < 0.01f)
         {
@@ -197,8 +215,149 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    // ─── HandleAirGlide ──────────────────────────────────────────────────────
+    // ─── HandleRoll (Ground) ─────────────────────────────────────────────────
 
+    private void HandleRoll()
+    {
+        if (_rollCooldownTimer > 0f)
+            _rollCooldownTimer -= Time.fixedDeltaTime;
+
+        // ── Đang roll ────────────────────────────────────────────────────────
+        if (_fsm.CurrentStateType == PlayerStateType.DashOnGround)
+        {
+            _rollTimer -= Time.fixedDeltaTime;
+
+            // t: 1 → 0 theo thời gian roll
+            float t = Mathf.Clamp01(_rollTimer / _config.RollDuration);
+
+            // Boost curve: ease-in/out — đỉnh ở giữa, về 0 ở cuối
+            // Dùng SmoothStep để boost mượt hơn 4t(1-t)
+            float boostCurve  = Mathf.SmoothStep(0f, 1f, t * 2f) * Mathf.SmoothStep(0f, 1f, (1f - t) * 2f);
+            float boostSpeed  = _rollBoostSpeed * boostCurve;
+
+            // Base speed: tốc độ locomotion gốc giảm dần tuyến tính từ startSpeed → moveSpeed
+            // Đảm bảo cuối roll vẫn có momentum walk/run, không về 0
+            float baseSpeed   = Mathf.Lerp(_config.MoveSpeed, _rollStartSpeed, t);
+
+            float totalSpeed  = baseSpeed + boostSpeed;
+
+            _rb.linearVelocity = new Vector3(
+                _rollDirection.x * totalSpeed,
+                _rb.linearVelocity.y,
+                _rollDirection.z * totalSpeed
+            );
+
+            if (_rollTimer <= 0f)
+            {
+                _rollCooldownTimer = _config.RollCooldown;
+
+                // Trả velocity về locomotion ngay — tránh khựng 1 frame
+                float exitSpeed = _input.IsMoving
+                    ? (_input.IsSprinting ? _config.MoveSpeed * _config.SprintMultiplier : _config.MoveSpeed)
+                    : 0f;
+
+                var exitDir = _input.IsMoving ? _rollDirection : Vector3.zero;
+                _rb.linearVelocity = new Vector3(
+                    exitDir.x * exitSpeed,
+                    _rb.linearVelocity.y,
+                    exitDir.z * exitSpeed
+                );
+
+                _fsm.TransitionTo(_input.IsMoving
+                    ? (_input.IsSprinting ? PlayerStateType.Run : PlayerStateType.Walk)
+                    : PlayerStateType.Idle);
+            }
+            return;
+        }
+
+        // ── Điều kiện kích hoạt ──────────────────────────────────────────────
+        if (_rollCooldownTimer > 0f) return;
+        if (!_isGrounded) return;
+        if (_fsm.CurrentStateType is PlayerStateType.GroundSlide
+                                  or PlayerStateType.Dead
+                                  or PlayerStateType.Respawning) return;
+        if (!_input.ConsumeDashPressed()) return;
+
+        // Hướng roll: ưu tiên hướng di chuyển hiện tại, fallback transform.forward
+        _rollDirection = _input.IsMoving ? ComputeDashDirection() : transform.forward;
+
+        // Lấy tốc độ hiện tại làm baseline — giữ momentum walk/run
+        float currentSpeed = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z).magnitude;
+        _rollStartSpeed    = Mathf.Max(currentSpeed, _config.MoveSpeed);
+
+        // Boost speed: khoảng cách phụ thêm / (integral của boostCurve ≈ 0.5 * duration)
+        _rollBoostSpeed    = _config.RollDistance / (_config.RollDuration * 0.5f);
+
+        _rollTimer = _config.RollDuration;
+
+        // Xoay nhân vật về hướng roll ngay lập tức
+        if (_rollDirection.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(_rollDirection);
+
+        _fsm.TransitionTo(PlayerStateType.DashOnGround);
+    }
+
+    // ─── HandleAirDash ───────────────────────────────────────────────────────
+
+    private void HandleAirDash()
+    {
+        if (_dashCooldownTimer > 0f)
+            _dashCooldownTimer -= Time.fixedDeltaTime;
+
+        // ── Đang air dash — duy trì velocity ngang cố định, tắt gravity ──
+        if (_fsm.CurrentStateType == PlayerStateType.DashInAir)
+        {
+            _dashTimer -= Time.fixedDeltaTime;
+            _rb.linearVelocity = new Vector3(_dashVelocity.x, 0f, _dashVelocity.z);
+            _rb.useGravity = false;
+
+            if (_dashTimer <= 0f)
+            {
+                _rb.useGravity = true;
+                _fsm.TransitionTo(PlayerStateType.Jump);
+            }
+            return;
+        }
+
+        // ── Điều kiện kích hoạt ──
+        if (_dashCooldownTimer > 0f) return;
+        if (_isGrounded || _dashUsed) return;
+        if (_fsm.CurrentStateType is not (PlayerStateType.Jump
+                                       or PlayerStateType.DoubleJump
+                                       or PlayerStateType.AirGlide)) return;
+        if (!_input.ConsumeDashPressed()) return;
+
+        var dashDir   = ComputeDashDirection();
+        float speed   = _config.DashDistance / _config.DashDuration;
+        _dashVelocity = dashDir * speed;
+
+        _rb.linearVelocity = new Vector3(_dashVelocity.x, 0f, _dashVelocity.z);
+        _rb.useGravity     = false;
+
+        _dashUsed          = true;
+        _dashTimer         = _config.DashDuration;
+        _dashCooldownTimer = _config.DashCooldown;
+
+        if (dashDir.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(dashDir);
+
+        _fsm.TransitionTo(PlayerStateType.DashInAir);
+    }
+
+    /// <summary>Tính hướng dash từ camera + input. Fallback về transform.forward.</summary>
+    private Vector3 ComputeDashDirection()
+    {
+        var cam = Camera.main;
+        if (cam != null && _input.MoveInput.sqrMagnitude > 0.01f)
+        {
+            var fwd = cam.transform.forward; fwd.y = 0f; fwd.Normalize();
+            var rgt = cam.transform.right;   rgt.y = 0f; rgt.Normalize();
+            return (fwd * _input.MoveInput.y + rgt * _input.MoveInput.x).normalized;
+        }
+        return transform.forward;
+    }
+
+    // ─── HandleAirGlide ──────────────────────────────────────────────────────
     private void HandleAirGlide()
     {
         bool isFalling = _rb.linearVelocity.y < 0f;
@@ -358,13 +517,15 @@ public class PlayerController : NetworkBehaviour
         {
             _jumpCount  = 0;
             _glideUsed  = false;
+            _dashUsed   = false;
             _rb.useGravity = true;
 
             // Reset về ground state nếu đang ở air state
             if (_fsm.CurrentStateType is PlayerStateType.Jump
                 or PlayerStateType.DoubleJump
                 or PlayerStateType.AirGlide
-                or PlayerStateType.WallJump)
+                or PlayerStateType.WallJump
+                or PlayerStateType.DashInAir)
             {
                 _fsm.TransitionTo(_input.IsMoving
                     ? (_input.IsSprinting ? PlayerStateType.Run : PlayerStateType.Walk)

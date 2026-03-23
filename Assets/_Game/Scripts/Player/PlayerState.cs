@@ -19,7 +19,9 @@ public enum PlayerStateType
     WallHang,
     WallJump,
     Dead,
-    Respawning
+    Respawning,
+    DashInAir,
+    DashOnGround
 }
 
 /// <summary>

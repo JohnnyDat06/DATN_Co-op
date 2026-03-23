@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   MaxHealth: 100
   MoveSpeed: 4
-  SprintMultiplier: 1.6
+  SprintMultiplier: 1.8
   CrouchSpeedMultiplier: 0.3
   JumpForce: 14
   DoubleJumpForce: 14
@@ -24,3 +24,10 @@ MonoBehaviour:
   WallJumpVerticalForce: 8
   GroundSlideDuration: 0.8
   GroundSlideForce: 12
+  DashDistance: 6
+  DashDuration: 0.25
+  DashCooldown: 1
+  DashInputBuffer: 0.15
+  RollDistance: 3
+  RollDuration: 0.8
+  RollCooldown: 0.5

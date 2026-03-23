@@ -41,7 +41,7 @@ public class PlayerStateMachine : NetworkBehaviour
             _inputHandler = GetComponent<PlayerInputHandler>();
         }
 
-        // Khởi tạo tất cả 13 state — inject this + inputHandler
+        // Khởi tạo tất cả 15 state — inject this + inputHandler
         _states = new Dictionary<PlayerStateType, PlayerStateBase>
         {
             { PlayerStateType.Idle,         new IdleState(this, _inputHandler) },
@@ -57,6 +57,8 @@ public class PlayerStateMachine : NetworkBehaviour
             { PlayerStateType.WallJump,     new WallJumpState(this, _inputHandler) },
             { PlayerStateType.Dead,         new DeadState(this, _inputHandler) },
             { PlayerStateType.Respawning,   new RespawningState(this, _inputHandler) },
+            { PlayerStateType.DashInAir,    new DashInAirState(this, _inputHandler) },
+            { PlayerStateType.DashOnGround, new DashOnGroundState(this, _inputHandler) },
         };
     }
 
