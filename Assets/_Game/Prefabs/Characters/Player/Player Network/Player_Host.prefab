@@ -5101,6 +5101,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _fsm: {fileID: 2139253852454988098}
   _speedDampTime: 0.08
+  _freeFallDelay: 0.1
 --- !u!114 &82372254278189890
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5131,7 +5132,7 @@ MonoBehaviour:
   _meshMale: {fileID: 4812728269219159971}
   _meshFemale: {fileID: 4439432791508319261}
   _hostAnimatorController: {fileID: 9100000, guid: 2246874a1db5cab478dcd49b113de946, type: 2}
-  _clientAnimatorController: {fileID: 9100000, guid: 7b43460465c18d340897239c4e7cf427, type: 2}
+  _clientAnimatorController: {fileID: 9100000, guid: ed7609ddaa6ba7b439a1c3f7dc9c26a1, type: 2}
   _avatarMaleAnimator: {fileID: 9000000, guid: 886ec843a322d1349bd117961794b3e0, type: 3}
   _avatarFemaleAnimator: {fileID: 9000000, guid: 1e747774a793a82479598ba15c646271, type: 3}
   _animator: {fileID: 228853407447402935}
@@ -5163,6 +5164,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   _inputActions: {fileID: -944628639613478452, guid: bf667e48af0f42347a6194a2b89dba60, type: 3}
   _jumpBufferDuration: 0.12
+  _config: {fileID: 0}
 --- !u!114 &-200088596683272483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5205,7 +5207,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  NetworkTransformExpanded: 1
+  NetworkTransformExpanded: 0
   AutoOwnerAuthorityTickOffset: 1
   PositionInterpolationType: 1
   RotationInterpolationType: 1
@@ -5322,6 +5324,14 @@ MonoBehaviour:
       NameHash: -2098586373
       Synchronize: 1
       ParameterType: 4
+    - name: DashTrigger
+      NameHash: -1314317970
+      Synchronize: 1
+      ParameterType: 9
+    - name: GroundDashTrigger
+      NameHash: -1847063499
+      Synchronize: 1
+      ParameterType: 9
   AnimatorParametersExpanded: 0
 --- !u!114 &3624793998996593354
 MonoBehaviour:

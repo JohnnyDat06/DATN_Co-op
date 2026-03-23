@@ -11,25 +11,30 @@ public class PlayerAnimator : MonoBehaviour
 {
     [SerializeField] private PlayerStateMachine _fsm;
     [SerializeField, Min(0f)] private float _speedDampTime = 0.08f;
+    [SerializeField, Min(0f)] private float _freeFallDelay = 2.0f;
 
     private Animator _animator;
     private PlayerController _controller;
     private Rigidbody _rb;
     private PlayerStateType _previousState;
+    private float _fallingTimer;
+    private bool _wasJumping; 
 
     // Animator Parameter Name Constants — dùng hash để tránh typo, tăng hiệu năng
-    private static readonly int SPEED           = Animator.StringToHash("Speed");
-    private static readonly int IS_GROUNDED     = Animator.StringToHash("IsGrounded");
-    private static readonly int IS_CROUCHING    = Animator.StringToHash("IsCrouching");
-    private static readonly int IS_GLIDING      = Animator.StringToHash("IsGliding");
-    private static readonly int IS_DEAD         = Animator.StringToHash("IsDead");
-    private static readonly int JUMP_BOOL       = Animator.StringToHash("Jump");
-    private static readonly int FREE_FALL_BOOL  = Animator.StringToHash("FreeFall");
-    private static readonly int DJUMP_TRIGGER   = Animator.StringToHash("DoubleJumpTrigger");
-    private static readonly int WJUMP_TRIGGER   = Animator.StringToHash("WallJumpTrigger");
-    private static readonly int SLIDE_TRIGGER   = Animator.StringToHash("SlideTrigger");
-    private static readonly int RESPAWN_TRIGGER = Animator.StringToHash("RespawnTrigger");
-    private static readonly int VERTICAL_SPEED  = Animator.StringToHash("VerticalSpeed");
+    private static readonly int SPEED                = Animator.StringToHash("Speed");
+    private static readonly int IS_GROUNDED          = Animator.StringToHash("IsGrounded");
+    private static readonly int IS_CROUCHING         = Animator.StringToHash("IsCrouching");
+    private static readonly int IS_GLIDING           = Animator.StringToHash("IsGliding");
+    private static readonly int IS_DEAD              = Animator.StringToHash("IsDead");
+    private static readonly int JUMP_BOOL            = Animator.StringToHash("Jump");
+    private static readonly int FREE_FALL_BOOL       = Animator.StringToHash("FreeFall");
+    private static readonly int DJUMP_TRIGGER        = Animator.StringToHash("DoubleJumpTrigger");
+    private static readonly int WJUMP_TRIGGER        = Animator.StringToHash("WallJumpTrigger");
+    private static readonly int SLIDE_TRIGGER        = Animator.StringToHash("SlideTrigger");
+    private static readonly int RESPAWN_TRIGGER      = Animator.StringToHash("RespawnTrigger");
+    private static readonly int VERTICAL_SPEED       = Animator.StringToHash("VerticalSpeed");
+    private static readonly int DASH_TRIGGER         = Animator.StringToHash("DashTrigger");
+    private static readonly int GROUND_DASH_TRIGGER  = Animator.StringToHash("GroundDashTrigger");
 
     private void Awake()
     {
@@ -63,7 +68,42 @@ public class PlayerAnimator : MonoBehaviour
         // Multiplayer Proxy Client sẽ bị NetworkTransform thiết lập vị trí mà không sinh vận tốc Rigidbody.
         // Căn cứ hoàn toàn vào FSM State được đồng bộ qua mạng để chạy Animation chuẩn xác.
         bool isJumpRising  = currentState is PlayerStateType.Jump or PlayerStateType.DoubleJump or PlayerStateType.WallJump;
-        bool isFreeFalling = !isGrounded && verticalSpeed <= 0.01f;
+        
+        // Logic phân biệt rơi tự do (Walk Off) và rơi sau khi nhảy (Jump Loop)
+        if (isGrounded || currentState == PlayerStateType.WallHang)
+        {
+            _wasJumping = false;
+            _fallingTimer = 0f;
+        }
+        else if (isJumpRising)
+        {
+            _wasJumping = true;
+        }
+
+        bool isFallingCondition = !isGrounded && verticalSpeed <= 0.01f;
+        bool isFreeFalling = false;
+
+        if (isFallingCondition)
+        {
+            if (_wasJumping)
+            {
+                // Nếu đang trong chuỗi nhảy (Jump -> Fall), animation chạy bình thường (liền mạch)
+                isFreeFalling = true;
+            }
+            else
+            {
+                // Nếu rơi tự do từ trên cao (không nhảy), đợi delay rồi mới bật FreeFall
+                _fallingTimer += Time.deltaTime;
+                if (_fallingTimer >= _freeFallDelay)
+                {
+                    isFreeFalling = true;
+                }
+            }
+        }
+        else
+        {
+            _fallingTimer = 0f;
+        }
 
         if (currentState == PlayerStateType.WallHang || currentState == PlayerStateType.WallJump)
         {
@@ -90,10 +130,12 @@ public class PlayerAnimator : MonoBehaviour
         {
             switch (currentState)
             {
-                case PlayerStateType.DoubleJump:  _animator.SetTrigger(DJUMP_TRIGGER);   break;
-                case PlayerStateType.WallJump:    _animator.SetTrigger(WJUMP_TRIGGER);   break;
-                case PlayerStateType.GroundSlide: _animator.SetTrigger(SLIDE_TRIGGER);   break;
-                case PlayerStateType.Respawning:  _animator.SetTrigger(RESPAWN_TRIGGER); break;
+                case PlayerStateType.DoubleJump:   _animator.SetTrigger(DJUMP_TRIGGER);        break;
+                case PlayerStateType.WallJump:     _animator.SetTrigger(WJUMP_TRIGGER);        break;
+                case PlayerStateType.GroundSlide:  _animator.SetTrigger(SLIDE_TRIGGER);        break;
+                case PlayerStateType.Respawning:   _animator.SetTrigger(RESPAWN_TRIGGER);      break;
+                case PlayerStateType.DashInAir:    _animator.SetTrigger(DASH_TRIGGER);         break;
+                case PlayerStateType.DashOnGround: _animator.SetTrigger(GROUND_DASH_TRIGGER);  break;
             }
 
             _previousState = currentState;
@@ -111,5 +153,6 @@ public class PlayerAnimator : MonoBehaviour
     /// <summary>Kiểm tra state có phải ground state không.</summary>
     private bool IsGroundedState(PlayerStateType state) => state is
         PlayerStateType.Idle or PlayerStateType.Walk or PlayerStateType.Run or
-        PlayerStateType.CrouchIdle or PlayerStateType.CrouchWalk or PlayerStateType.GroundSlide;
+        PlayerStateType.CrouchIdle or PlayerStateType.CrouchWalk or
+        PlayerStateType.GroundSlide or PlayerStateType.DashOnGround;
 }
