@@ -3,7 +3,22 @@ guid: 7cb3aec9d582704459d4560bbb38bf65
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_CLR_black
+    second: {fileID: 2100000, guid: 14145833bd8343541a1dd713835b1a4f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_metal_01
+    second: {fileID: 2100000, guid: c932c6ccc1244ef48920b3a1d6a0347a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_stonebrick_02
+    second: {fileID: 2100000, guid: a68b18d456604404fb1ac7a08870e39c, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
