@@ -175,8 +175,18 @@ public class ErisMinigameManager : NetworkBehaviour
     private void StopPathLoop() {
         if (_pathLoopCoroutine != null) StopCoroutine(_pathLoopCoroutine);
         foreach (var t in _spawnedTiles) t.RestoreColor();
-        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value) { if (BlackFogVFX != null) { BlackFogVFX.Stop(); BlackFogVFX.Clear(); } }
-        else { ErisTile st = GetTileAt(_syncedPath[0]); if (st != null) st.SetColor(Color.green, true); }
+        
+        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value) 
+        { 
+            if (BlackFogVFX != null) { BlackFogVFX.Stop(); BlackFogVFX.Clear(); } 
+            // Tự động hiển thị các ô có thể đi tiếp theo ngay khi bắt đầu chơi
+            HighlightPossibleMoves(_pieceGridPos.Value);
+        }
+        else 
+        { 
+            ErisTile st = GetTileAt(_syncedPath[0]); 
+            if (st != null) st.SetColor(Color.green, true); 
+        }
     }
 
     private IEnumerator PathRevealRoutine() {
@@ -242,16 +252,27 @@ public class ErisMinigameManager : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     private void SubmitMoveServerRpc(Vector2Int gridPos) {
         Vector2Int currentPos = _pieceGridPos.Value;
-        if (Mathf.Abs(gridPos.x - currentPos.x) + Mathf.Abs(gridPos.y - currentPos.y) != 1) return; 
-        if (_currentStepIndex.Value + 1 < _syncedPath.Length && gridPos == _syncedPath[_currentStepIndex.Value + 1]) {
-            _currentStepIndex.Value++; _pieceGridPos.Value = gridPos;
-        } else {
+        if (Mathf.Abs(gridPos.x - currentPos.x) + Mathf.Abs(gridPos.y - currentPos.y) == 1 
+            && _currentStepIndex.Value + 1 < _syncedPath.Length 
+            && gridPos == _syncedPath[_currentStepIndex.Value + 1]) 
+        {
+            _currentStepIndex.Value++; 
+            _pieceGridPos.Value = gridPos;
+        } 
+        else 
+        {
             WrongMoveEffectClientRpc(gridPos);
             StartCoroutine(ResetServerDelayed());
         }
     }
 
-    private IEnumerator ResetServerDelayed() { yield return new WaitForSeconds(2.0f); _currentStepIndex.Value = 0; _pieceGridPos.Value = _syncedPath[0]; }
+    private IEnumerator ResetServerDelayed() { 
+        yield return new WaitForSeconds(2.0f); 
+        _currentStepIndex.Value = 0; 
+        // Force update: gán giá trị rác trước khi gán lại giá trị cũ để ép OnValueChanged trên Client
+        _pieceGridPos.Value = new Vector2Int(-1, -1);
+        _pieceGridPos.Value = _syncedPath[0]; 
+    }
 
     [ClientRpc]
     private void WrongMoveEffectClientRpc(Vector2Int wrongPos) { StartCoroutine(WrongMoveRippleEffect(wrongPos)); }
@@ -273,7 +294,6 @@ public class ErisMinigameManager : NetworkBehaviour
         yield return new WaitForSeconds(0.4f);
         foreach (var t in _spawnedTiles) t.RestoreColor();
         _isReseting = false;
-        _canInput = true; // Mở lại quyền điều khiển sau khi hiệu ứng kết thúc
     }
 
     private void UpdatePieceTarget(Vector2Int gridPos) {
@@ -307,18 +327,49 @@ public class ErisMinigameManager : NetworkBehaviour
         foreach (var dir in neighbors) { ErisTile t = GetTileAt(center + dir); if (t != null) t.SetOutline(true); }
     }
 
-    private IEnumerator EndGameDelayed() { yield return new WaitForSeconds(1f); EndGameClientRpc(); }
+    private IEnumerator EndGameDelayed() { 
+        yield return new WaitForSeconds(1f); 
+        SuccessEffectClientRpc(_pieceGridPos.Value); 
+    }
 
     [ClientRpc]
-    private void EndGameClientRpc() {
-        _isGameActive.Value = false; _hasCompleted.Value = true;
-        if (IsServer && _spawnedPieceInstance != null) _spawnedPieceInstance.GetComponent<NetworkObject>().Despawn();
+    private void SuccessEffectClientRpc(Vector2Int finalPos) {
+        StartCoroutine(SuccessRippleEffect(finalPos));
+    }
+
+    private IEnumerator SuccessRippleEffect(Vector2Int finalPos) {
+        _canInput = false;
+        // Ripple màu xanh Cyan lan tỏa từ vị trí đích
+        for (int dist = 0; dist < 20; dist++) {
+            bool found = false;
+            foreach (var tile in _spawnedTiles) {
+                int d = Mathf.Abs(tile.GridPos.x - finalPos.x) + Mathf.Abs(tile.GridPos.y - finalPos.y);
+                if (d == dist) { 
+                    tile.SetColor(Color.green, true); 
+                    found = true; 
+                }
+            }
+            if (!found && dist > 10) break;
+            yield return new WaitForSeconds(0.04f);
+        }
+        yield return new WaitForSeconds(0.8f);
+        
+        // Sau khi hiệu ứng chạy xong mới gọi logic kết thúc và dọn dẹp
+        FinalizeMinigame();
+    }
+
+    private void FinalizeMinigame() {
+        if (IsServer) {
+            _isGameActive.Value = false; 
+            _hasCompleted.Value = true;
+            if (_spawnedPieceInstance != null) _spawnedPieceInstance.GetComponent<NetworkObject>().Despawn();
+        }
+        
         CleanupBoard();
         var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
         if (lp != null && lp.TryGetComponent<Rigidbody>(out var rb)) { rb.isKinematic = false; rb.linearVelocity = Vector3.zero; }
         _lockedPositions.Clear(); _lockedRotations.Clear();
         
-        // Sửa: Gọi trực tiếp SwitchCamera để thực hiện logic đổi VCam
         if (CameraManager.Instance != null) CameraManager.Instance.SwitchCamera(CameraPreset.ThirdPerson); 
         
         EventBus.RaiseGameResumed();
