@@ -6,6 +6,8 @@ TagManager:
   tags:
   - CinemachineTarget
   - DeathZone
+  - Tree
+  - ChessPiece
   layers:
   - Default
   - TransparentFX
