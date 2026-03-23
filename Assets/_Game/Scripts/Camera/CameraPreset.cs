@@ -7,5 +7,7 @@ public enum CameraPreset
     SandSlide,
     Platformer,
     FlyDown,
-    Cutscene
+    Cutscene,
+    TopDownController, // Thêm cho Minigame Eris
+    TopDownObserver    // Thêm cho Minigame Eris
 }

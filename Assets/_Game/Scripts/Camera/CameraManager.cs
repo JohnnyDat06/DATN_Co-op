@@ -16,6 +16,8 @@ public class CameraManager : MonoBehaviour
     [SerializeField] private CinemachineCamera _vcamSandSlide;
     [SerializeField] private CinemachineCamera _vcamPlatformer;
     [SerializeField] private CinemachineCamera _vcamFlyDown;
+    [SerializeField] private CinemachineCamera _vcamTopDownController; // Mới
+    [SerializeField] private CinemachineCamera _vcamTopDownObserver;   // Mới
 
     [Header("Configuration Assets (SO)")]
     [SerializeField] private SOCameraConfig _configThirdPerson;
@@ -23,6 +25,7 @@ public class CameraManager : MonoBehaviour
     [SerializeField] private SOCameraConfig _configPlatformer;
     [SerializeField] private SOCameraConfig _configFlyDown;
     [SerializeField] private SOCameraConfig _configCutscene;
+    [SerializeField] private SOCameraConfig _configTopDown; // Mới (Dùng chung)
 
     private PlayerInputHandler _inputHandler;
     private CameraPreset _currentPreset = CameraPreset.ThirdPerson;
@@ -86,7 +89,9 @@ public class CameraManager : MonoBehaviour
             { CameraPreset.ThirdPerson, _vcamThirdPerson },
             { CameraPreset.SandSlide, _vcamSandSlide },
             { CameraPreset.Platformer, _vcamPlatformer },
-            { CameraPreset.FlyDown, _vcamFlyDown }
+            { CameraPreset.FlyDown, _vcamFlyDown },
+            { CameraPreset.TopDownController, _vcamTopDownController },
+            { CameraPreset.TopDownObserver, _vcamTopDownObserver }
         };
 
         _configMap = new Dictionary<CameraPreset, SOCameraConfig>
@@ -95,7 +100,9 @@ public class CameraManager : MonoBehaviour
             { CameraPreset.SandSlide, _configSandSlide },
             { CameraPreset.Platformer, _configPlatformer },
             { CameraPreset.FlyDown, _configFlyDown },
-            { CameraPreset.Cutscene, _configCutscene }
+            { CameraPreset.Cutscene, _configCutscene },
+            { CameraPreset.TopDownController, _configTopDown },
+            { CameraPreset.TopDownObserver, _configTopDown }
         };
     }
 
@@ -133,6 +140,27 @@ public class CameraManager : MonoBehaviour
         if (_vcamMap.TryGetValue(preset, out CinemachineCamera target) && target != null)
         {
             target.Priority.Value = PRIORITY_ACTIVE;
+
+            // ÉP THÔNG SỐ TỰ ĐỘNG (Sửa lỗi cái to cái nhỏ)
+            if (preset == CameraPreset.TopDownController || preset == CameraPreset.TopDownObserver)
+            {
+                // 1. Ép FOV giống hệt nhau
+                var lens = target.Lens;
+                lens.FieldOfView = 60f; 
+                target.Lens = lens;
+
+                // 2. Ép góc nhìn thẳng xuống 90 độ
+                target.transform.rotation = Quaternion.Euler(90f, target.transform.eulerAngles.y, 0f);
+
+                // 3. Chỉnh độ cao (Distance) tự động
+                // Tìm component Follow của Cinemachine để chỉnh khoảng cách
+                var follow = target.GetComponent<CinemachineFollow>();
+                if (follow != null)
+                {
+                    float distance = (preset == CameraPreset.TopDownController) ? 12f : 22f;
+                    follow.FollowOffset = new Vector3(0, distance, 0);
+                }
+            }
         }
 
         ApplyBlendConfig(preset);
@@ -163,7 +191,7 @@ public class CameraManager : MonoBehaviour
 
     private void UpdateInputState(CameraPreset preset)
     {
-        bool lockMouse = preset is CameraPreset.SandSlide or CameraPreset.Platformer or CameraPreset.FlyDown or CameraPreset.Cutscene;
+        bool lockMouse = preset is CameraPreset.SandSlide or CameraPreset.Platformer or CameraPreset.FlyDown or CameraPreset.Cutscene or CameraPreset.TopDownController or CameraPreset.TopDownObserver;
         
         ResolvePlayerInputIfNeeded();
 
@@ -176,9 +204,9 @@ public class CameraManager : MonoBehaviour
 
     private void UpdateCursorState(CameraPreset preset)
     {
-        bool isCutscene = preset == CameraPreset.Cutscene;
-        Cursor.lockState = isCutscene ? CursorLockMode.Confined : CursorLockMode.Locked;
-        Cursor.visible = isCutscene;
+        bool showCursor = preset == CameraPreset.Cutscene || preset == CameraPreset.TopDownController || preset == CameraPreset.TopDownObserver;
+        Cursor.lockState = showCursor ? CursorLockMode.Confined : CursorLockMode.Locked;
+        Cursor.visible = showCursor;
     }
 
     private void HandleGamePaused()
