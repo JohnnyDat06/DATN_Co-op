@@ -16,6 +16,7 @@ MonoBehaviour:
     keys:
     - 
     - cd7b8fddc8425f64fb595c76ea8fc9a7
+    - 4e1b15ad38afb7f4893b2cc99e3c0b42
     values:
     - goDatas_byGlobalId:
         keys: []
@@ -23,5 +24,18 @@ MonoBehaviour:
     - goDatas_byGlobalId:
         keys: []
         values: []
+    - goDatas_byGlobalId:
+        keys:
+        - globalObjectIdString: GlobalObjectId_V1-2-4e1b15ad38afb7f4893b2cc99e3c0b42-1969073649-0
+        - globalObjectIdString: GlobalObjectId_V1-2-4e1b15ad38afb7f4893b2cc99e3c0b42-2101681703-0
+        values:
+        - colorIndex: 0
+          iconNameOrGuid: Settings Icon
+          isIconRecursive: 0
+          isColorRecursive: 0
+        - colorIndex: 0
+          iconNameOrGuid: Terrain Icon
+          isIconRecursive: 0
+          isColorRecursive: 0
   bookmarks: []
   bookmarkedScenePaths: []
