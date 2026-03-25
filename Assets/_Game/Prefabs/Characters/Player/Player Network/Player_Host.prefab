@@ -4951,6 +4951,8 @@ GameObject:
   - component: {fileID: -7669561230340678484}
   - component: {fileID: 2846873538495363931}
   - component: {fileID: 3624793998996593354}
+  - component: {fileID: -3320750976376978030}
+  - component: {fileID: -7321306293466953923}
   m_Layer: 3
   m_Name: Player_Host
   m_TagString: Player
@@ -5359,6 +5361,37 @@ MonoBehaviour:
   - {fileID: 2139253852454988098}
   - {fileID: -200088596683272483}
   - {fileID: 3811959385962667578}
+--- !u!114 &-3320750976376978030
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6331376093302597881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1eb5639358694914bad5e5283f4ddc57, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  _occlusionLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  _occludedVolumeReduction: 0.5
+  _occlusionCheckInterval: 0.2
+--- !u!114 &-7321306293466953923
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6331376093302597881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a71531faed8d8e446919b0ee2bb93f00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &6346669034698438194
 GameObject:
   m_ObjectHideFlags: 0
