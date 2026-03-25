@@ -13,8 +13,8 @@ public class ErisTile : MonoBehaviour
         _outline = GetComponent<Outline>();
         if (_outline == null) _outline = gameObject.AddComponent<Outline>();
         _outline.enabled = false;
-        _outline.OutlineWidth = 5f;
-        _outline.OutlineColor = Color.yellow;
+        _outline.OutlineWidth = 6f; // Tăng độ dày thêm chút
+        _outline.OutlineColor = Color.magenta; // Magenta tương phản rất tốt với Trắng và Xanh Lá
     }
 
     public void Init(Vector2Int pos)
