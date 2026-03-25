@@ -1364,6 +1364,15 @@ MonoBehaviour:
   NextAreaSpawn: {fileID: 125230331}
   ControllerStandPos: {fileID: 67451087}
   ObserverStandPos: {fileID: 38405610}
+  CameraOffset: {x: 4.935221, y: 14, z: 5}
+  CameraFOV: 60
+  CorrectMoveSFX: {fileID: 11400000, guid: b75badb85c97a65458c6b57b11621ac1, type: 2}
+  WrongMoveSFX: {fileID: 11400000, guid: cc605129a6e68d14699748b4b3e5a8a6, type: 2}
+  SuccessSFX: {fileID: 11400000, guid: 3720d407c11fd8948af1e9a8c560db2c, type: 2}
+  RevealTileSFX: {fileID: 0}
+  ControllerWaitingSFX: {fileID: 11400000, guid: 62969470954448545b986be2df508d84, type: 2}
+  ObserverPathRevealSFX: {fileID: 11400000, guid: b75badb85c97a65458c6b57b11621ac1, type: 2}
+  ReadyToPlaySFX: {fileID: 11400000, guid: ee05a1213e09541439053d69cffd59c3, type: 2}
 --- !u!65 &618588418
 BoxCollider:
   m_ObjectHideFlags: 0

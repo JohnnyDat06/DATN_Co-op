@@ -19,6 +19,15 @@ public class ErisMinigameManager : NetworkBehaviour
     public Vector3 CameraOffset = new Vector3(4.935221f, 14f, 5f);
     public float CameraFOV = 60f;
 
+    [Header("Audio Configs")]
+    public SOAudioClip CorrectMoveSFX;
+    public SOAudioClip WrongMoveSFX;
+    public SOAudioClip SuccessSFX;
+    public SOAudioClip RevealTileSFX;
+    public SOAudioClip ControllerWaitingSFX; // Âm thanh cho người điều khiển khi bắt đầu (đợi)
+    public SOAudioClip ObserverPathRevealSFX; // Âm thanh cho người quan sát khi bắt đầu (nhìn đường)
+    public SOAudioClip ReadyToPlaySFX;        // Âm thanh khi người quan sát nhấn E để sẵn sàng
+
     private List<ErisTile> _spawnedTiles = new List<ErisTile>();
     private Vector2Int[] _syncedPath; 
     
@@ -44,10 +53,24 @@ public class ErisMinigameManager : NetworkBehaviour
     private readonly KeyCode[] _leftKeys = { KeyCode.A, KeyCode.LeftArrow };
     private readonly KeyCode[] _rightKeys = { KeyCode.D, KeyCode.RightArrow };
 
+    private AudioSource _loopingSource;
+
     public override void OnNetworkSpawn()
     {
         _pieceGridPos.OnValueChanged += (oldVal, newVal) => UpdatePieceTarget(newVal);
-        _isMemorizing.OnValueChanged += (oldVal, newVal) => { if (!newVal) StopPathLoop(); };
+        _isMemorizing.OnValueChanged += (oldVal, newVal) => { 
+            Debug.Log($"[ErisBoard] isMemorizing changed to {newVal} for PlayerID {NetworkManager.Singleton.LocalClientId}");
+            if (!newVal) {
+                StopPathLoop();
+                // Dừng âm thanh chờ nếu có (chỉ Controller mới có _loopingSource)
+                if (_loopingSource != null) {
+                    AudioManager.Instance.StopSFX(_loopingSource);
+                    _loopingSource = null; 
+                }
+                // Phát âm thanh sẵn sàng cho CẢ HAI người cùng nghe (phát local trên từng máy)
+                AudioManager.Instance.PlaySFX(ReadyToPlaySFX);
+            }
+        };
     }
 
     private void OnTriggerEnter(Collider other)
@@ -64,8 +87,14 @@ public class ErisMinigameManager : NetworkBehaviour
         _isGameActive.Value = true;
         _isMemorizing.Value = true;
         _controllerId.Value = triggerPlayerId;
-        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
-            if (client.ClientId != triggerPlayerId) { _observerId.Value = client.ClientId; break; }
+        
+        // Tìm người còn lại làm Observer
+        foreach (var client in NetworkManager.Singleton.ConnectedClientsList) {
+            if (client.ClientId != triggerPlayerId) {
+                _observerId.Value = client.ClientId;
+                break;
+            }
+        }
 
         _syncedPath = GeneratePathArray();
         _pieceGridPos.Value = _syncedPath[0];
@@ -137,20 +166,31 @@ public class ErisMinigameManager : NetworkBehaviour
             _lockedRotations[NetworkManager.Singleton.LocalClientId] = lp.transform.rotation;
         }
 
-        // CHỈNH CAMERA TOP-DOWN CỐ ĐỊNH TẠI MANAGER
-        bool isController = NetworkManager.Singleton.LocalClientId == controllerId;
-        CameraPreset preset = isController ? CameraPreset.TopDownController : CameraPreset.TopDownObserver;
-        
+        CameraPreset preset = (NetworkManager.Singleton.LocalClientId == controllerId) ? CameraPreset.TopDownController : CameraPreset.TopDownObserver;
         CameraManager.Instance.SwitchCamera(preset);
-        
-        // Ép vị trí/góc xoay cho Virtual Camera để NHÌN CỐ ĐỊNH VÀO MANAGER
         SyncCameraToManager();
 
-        if (isController && BlackFogVFX != null) BlackFogVFX.Play();
-        else if (!isController) StartPathLoop();
+        ulong localId = NetworkManager.Singleton.LocalClientId;
+        Debug.Log($"[ErisBoard] SetupBoardClientRpc - LocalID: {localId}, ControllerID: {controllerId}, ObserverID: {observerId}");
+
+        if (localId == controllerId) {
+            if (BlackFogVFX != null) BlackFogVFX.Play();
+            // Người điều khiển nghe âm thanh chờ (Lặp lại)
+            if (_loopingSource != null) AudioManager.Instance.StopSFX(_loopingSource);
+            _loopingSource = AudioManager.Instance.PlaySFXLoop(ControllerWaitingSFX);
+            Debug.Log("[ErisBoard] Controller start: Waiting sound loop started.");
+        } 
+        else if (localId == observerId) {
+            StartPathLoop();
+            // Người quan sát: Âm thanh từng ô sẽ được phát trong PathRevealRoutine
+            // Phát âm thanh khởi động con đường 1 lần
+            AudioManager.Instance.PlaySFX(ObserverPathRevealSFX);
+            Debug.Log("[ErisBoard] Observer start: Reveal sound sequence started.");
+        }
 
         EventBus.RaiseGamePaused(); UpdatePieceTarget(path[0]); 
     }
+
 
     private void SyncCameraToManager() {
         var vcams = FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
@@ -192,12 +232,18 @@ public class ErisMinigameManager : NetworkBehaviour
     private IEnumerator PathRevealRoutine() {
         while (true) {
             foreach (var t in _spawnedTiles) t.ResetTile();
+            yield return new WaitForSeconds(0.5f); // Đợi 1 chút trước khi bắt đầu nhịp mới
+
             foreach (var step in _syncedPath) {
                 ErisTile tile = GetTileAt(step);
-                if (tile != null) tile.SetColor(Color.green);
-                yield return new WaitForSeconds(0.15f);
+                if (tile != null) {
+                    tile.SetColor(Color.green);
+                    // BUỘC PHÁT ÂM THANH 2D CHO TỪNG Ô
+                    if (RevealTileSFX != null) AudioManager.Instance.PlaySFX(RevealTileSFX);
+                }
+                yield return new WaitForSeconds(0.2f); // Tăng thời gian giãn cách một chút để nghe rõ hơn
             }
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(2.5f); // Nghỉ giữa các vòng lặp
         }
     }
 
@@ -246,10 +292,10 @@ public class ErisMinigameManager : NetworkBehaviour
 
     private bool AnyKeyPressed(KeyCode[] keys) { foreach (var k in keys) if (Input.GetKeyDown(k)) return true; return false; }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void ReadyToPlayServerRpc() => _isMemorizing.Value = false;
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void SubmitMoveServerRpc(Vector2Int gridPos) {
         Vector2Int currentPos = _pieceGridPos.Value;
         if (Mathf.Abs(gridPos.x - currentPos.x) + Mathf.Abs(gridPos.y - currentPos.y) == 1 
@@ -279,6 +325,7 @@ public class ErisMinigameManager : NetworkBehaviour
 
     private IEnumerator WrongMoveRippleEffect(Vector2Int wrongPos) {
         _isReseting = true; _canInput = false;
+        AudioManager.Instance.PlaySFX(WrongMoveSFX);
         ErisTile wrongTile = GetTileAt(wrongPos);
         if (wrongTile != null) wrongTile.ApplyTemporaryRed();
         yield return new WaitForSeconds(0.2f);
@@ -315,6 +362,9 @@ public class ErisMinigameManager : NetworkBehaviour
             yield return null;
         }
         _spawnedPieceInstance.transform.position = target;
+        if (!_isReseting && _currentStepIndex.Value > 0) {
+            AudioManager.Instance.PlaySFX(CorrectMoveSFX, _spawnedPieceInstance.transform.position);
+        }
         HighlightPossibleMoves(gridPos);
         yield return new WaitForSeconds(0.05f);
         if (!_isReseting) _canInput = true;
@@ -339,6 +389,7 @@ public class ErisMinigameManager : NetworkBehaviour
 
     private IEnumerator SuccessRippleEffect(Vector2Int finalPos) {
         _canInput = false;
+        AudioManager.Instance.PlaySFX(SuccessSFX);
         // Ripple màu xanh Cyan lan tỏa từ vị trí đích
         for (int dist = 0; dist < 20; dist++) {
             bool found = false;
