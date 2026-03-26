@@ -14644,9 +14644,8 @@ GameObject:
   - component: {fileID: 4966158089451249891}
   - component: {fileID: 4141198203316237874}
   - component: {fileID: 3702167217368606799}
-  - component: {fileID: 6392401390630544880}
   m_Layer: 0
-  m_Name: Capsule
+  m_Name: Capsule_Vision
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -14720,29 +14719,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!136 &6392401390630544880
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4039362725233169944}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &4111485069415488219
 GameObject:
   m_ObjectHideFlags: 0
@@ -15124,6 +15100,86 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!1 &6071870893971312880
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4910254419922493830}
+  - component: {fileID: 5782002038332879071}
+  - component: {fileID: 5799566640815337785}
+  m_Layer: 0
+  m_Name: Trigger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4910254419922493830
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6071870893971312880}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5029999730021145556}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5782002038332879071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6071870893971312880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  GlobalObjectIdHash: 2982021954
+  InScenePlacedSourceGlobalObjectIdHash: 678866616
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!114 &5799566640815337785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6071870893971312880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c12b6f18077a5ea49895c44b9e366231, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  mirrorController: {fileID: 4389911318366705395}
+  additionalObjectsToActivate:
+  - {fileID: 4039362725233169944}
+  boxSize: {x: 5, y: 6, z: 6}
+  boxOffset: {x: 0, y: 0, z: 0}
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  detectionInterval: 0.2
 --- !u!1 &6199497156019347199
 GameObject:
   m_ObjectHideFlags: 0
@@ -15168,7 +15224,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5029999730021145556}
-  - component: {fileID: 4278386277902130549}
+  - component: {fileID: 1945593992728070455}
+  - component: {fileID: 4389911318366705395}
   m_Layer: 0
   m_Name: MagicMiror
   m_TagString: Untagged
@@ -15192,22 +15249,49 @@ Transform:
   - {fileID: 7927840412723009754}
   - {fileID: 4452079590131808275}
   - {fileID: 3095387693363881486}
+  - {fileID: 4910254419922493830}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4278386277902130549
+--- !u!114 &1945593992728070455
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6389317028778413702}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 093e4e9198870154c91cfb08154a343e, type: 3}
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  portalEffectColor: {r: 0.25, g: 1, b: 0.7970589, a: 1}
-  portalRenderer: {fileID: 1800088544177011477}
+  GlobalObjectIdHash: 2207061829
+  InScenePlacedSourceGlobalObjectIdHash: 2582812607
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
+--- !u!114 &4389911318366705395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6389317028778413702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 708eae3e84b9be845b901cc4e9e412ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  mirrorEffectColor: {r: 0.6556604, g: 0.8232615, b: 1, a: 0}
+  mirrorRenderer: {fileID: 1800088544177011477}
   effectsPartSystems:
   - {fileID: 3056476138409336589}
   - {fileID: 5376604282296738085}
@@ -15215,9 +15299,9 @@ MonoBehaviour:
   - {fileID: 1193937950070390017}
   - {fileID: 3111552121989756702}
   - {fileID: 5484661428583542858}
-  portalLight: {fileID: 1467457685676947074}
+  mirrorLight: {fileID: 1467457685676947074}
   symbolTF: {fileID: 1380373511573210201}
-  portalAudio: {fileID: 4791374095795070283}
+  mirrorAudio: {fileID: 4791374095795070283}
   flashAudio: {fileID: 1155684702651552419}
 --- !u!1 &7084091353162024176
 GameObject:
@@ -30191,7 +30275,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: bfe317edcf97e7043bbb18222efe0f93, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: bfe317edcf97e7043bbb18222efe0f93, type: 3}
       propertyPath: m_StaticEditorFlags
