@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Netcode;
 using Unity.Netcode.Components;
 using UnityEngine;
@@ -172,5 +173,73 @@ public class NGOPlayerSync : NetworkBehaviour
 
             behaviour.enabled = enabled;
         }
+    }
+
+    /// <summary>
+    /// Thực hiện dịch chuyển (Teleport) nhân vật một cách an toàn và đồng bộ.
+    /// Logic dựa trên TeleportManager của dự án.
+    /// </summary>
+    public void Teleport(Vector3 position, Quaternion rotation)
+    {
+        if (IsServer)
+        {
+            // Nếu gọi từ Server, gửi lệnh xuống Client sở hữu (Owner)
+            TeleportClientRpc(position, rotation);
+        }
+        else if (IsOwner)
+        {
+            // Nếu là Owner, thực hiện trực tiếp
+            StartCoroutine(PerformTeleportCoroutine(position, rotation));
+        }
+    }
+
+    [ClientRpc]
+    private void TeleportClientRpc(Vector3 position, Quaternion rotation)
+    {
+        // Chỉ thực hiện trên máy khách sở hữu (Owner) nhân vật này
+        if (IsOwner)
+        {
+            StartCoroutine(PerformTeleportCoroutine(position, rotation));
+        }
+    }
+
+    private IEnumerator PerformTeleportCoroutine(Vector3 position, Quaternion rotation)
+    {
+        // 1. Tạm thời tắt Rigidbody Interpolation để tránh rubber banding
+        RigidbodyInterpolation originalInterpolation = RigidbodyInterpolation.None;
+        bool hasRigidbody = _rigidbody != null;
+        
+        if (hasRigidbody)
+        {
+            originalInterpolation = _rigidbody.interpolation;
+            _rigidbody.interpolation = RigidbodyInterpolation.None;
+            _rigidbody.linearVelocity = Vector3.zero;
+            _rigidbody.angularVelocity = Vector3.zero;
+            _rigidbody.isKinematic = true; // Tạm khóa vật lý
+        }
+
+        // 2. Cập nhật vị trí transform
+        transform.position = position;
+        transform.rotation = rotation;
+
+        // 3. Thông báo cho NetworkTransform (NGO 1.5+)
+        if (_networkTransform != null)
+        {
+            _networkTransform.Teleport(position, rotation, transform.localScale);
+        }
+
+        // 4. Chờ 1 frame vật lý để Engine và NetworkTransform ghi nhận vị trí mới
+        yield return new WaitForFixedUpdate();
+
+        // 5. Khôi phục trạng thái Rigidbody
+        if (hasRigidbody && _rigidbody != null)
+        {
+            _rigidbody.isKinematic = !IsOwner; // Trả lại trạng thái theo Authority
+            _rigidbody.interpolation = originalInterpolation;
+            _rigidbody.linearVelocity = Vector3.zero;
+            _rigidbody.angularVelocity = Vector3.zero;
+        }
+
+        Debug.Log($"[NGOPlayerSync] Teleported to {position}");
     }
 }
