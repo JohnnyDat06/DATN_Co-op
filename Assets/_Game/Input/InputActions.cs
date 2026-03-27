@@ -301,7 +301,7 @@ public partial class @InputActions: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""42a3f4d1-2c75-4669-a787-c8bf911172e0"",
-                    ""path"": ""<Gamepad>/buttonEast"",
+                    ""path"": ""<XInputController>/leftTrigger"",
                     ""interactions"": ""Hold"",
                     ""processors"": """",
                     ""groups"": """",

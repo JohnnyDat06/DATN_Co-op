@@ -48,4 +48,5 @@ MonoBehaviour:
           isIconRecursive: 0
           isColorRecursive: 0
   bookmarks: []
-  bookmarkedScenePaths: []
+  bookmarkedScenePaths:
+  - Assets/_Game/Scenes/ThuanScense/ThuanSandbox.unity
