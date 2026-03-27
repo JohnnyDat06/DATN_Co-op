@@ -26,6 +26,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Game/Scenes/ThuanScense/ThuanSandbox.unity
     guid: 4e1b15ad38afb7f4893b2cc99e3c0b42
+  - enabled: 1
+    path: Assets/_Game/Scenes/ThuScense/MapDemo.unity
+    guid: 06689bd92c7c8f941ace6bd93011f3b2
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: bf667e48af0f42347a6194a2b89dba60, type: 3}
   m_UseUCBPForAssetBundles: 0
