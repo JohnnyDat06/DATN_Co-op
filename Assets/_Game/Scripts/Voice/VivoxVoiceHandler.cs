@@ -26,7 +26,11 @@ public class VivoxVoiceHandler : NetworkBehaviour
     {
         if (IsOwner)
         {
-            _syncedVivoxId.Value = AuthenticationService.Instance.PlayerId;
+            // Initial attempt, might be empty if services not ready
+            if (AuthenticationService.Instance.IsSignedIn)
+            {
+                _syncedVivoxId.Value = AuthenticationService.Instance.PlayerId;
+            }
             JoinVoiceChannel();
         }
 
@@ -45,9 +49,11 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
     private void RegisterHandler(string id)
     {
+        if (string.IsNullOrEmpty(id)) return;
+        
         _vivoxId = id;
         _allHandlers[id] = this;
-        Debug.Log($"[VivoxVoiceHandler] Registered handler for PlayerId: {id} (Owner: {OwnerClientId})");
+        Debug.Log($"[VivoxVoiceHandler] Registered handler for PlayerId: {id} (Owner: {OwnerClientId}, IsOwner: {IsOwner})");
     }
 
     public override void OnNetworkDespawn()
@@ -73,17 +79,30 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
         // Retry mechanism in case Authentication or Vivox isn't ready immediately
         int retries = 0;
-        while (retries < 5)
+        while (retries < 10) // Increased retries
         {
             try
             {
-                Debug.Log($"[VivoxVoiceHandler] Player {OwnerClientId} joining voice channel (Attempt {retries + 1})...");
+                Debug.Log($"[VivoxVoiceHandler] Player {OwnerClientId} attempting to login and join voice (Attempt {retries + 1})...");
                 await VivoxManager.Instance.LoginAsync();
+                
+                if (IsOwner && AuthenticationService.Instance.IsSignedIn)
+                {
+                    string currentId = AuthenticationService.Instance.PlayerId;
+                    if (_syncedVivoxId.Value.ToString() != currentId)
+                    {
+                        Debug.Log($"[VivoxVoiceHandler] Updating synced Vivox ID to: {currentId}");
+                        _syncedVivoxId.Value = currentId;
+                        // Local registration will happen via OnValueChanged or the initial call
+                        RegisterHandler(currentId);
+                    }
+                }
+
                 await VivoxManager.Instance.JoinChannelAsync(VivoxManager.Instance.DefaultChannelName, true);
                 
                 if (VivoxManager.Instance.IsLoggedIn && !string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
                 {
-                    Debug.Log("[VivoxVoiceHandler] Successfully joined voice channel.");
+                    Debug.Log($"[VivoxVoiceHandler] Successfully joined voice channel: {VivoxManager.Instance.JoinedChannelName}");
                     break;
                 }
             }
@@ -119,6 +138,7 @@ public class VivoxVoiceHandler : NetworkBehaviour
         
         try 
         {
+            // Set both speaker and listener position for the local player
             VivoxService.Instance.Set3DPosition(
                 transform.position,
                 listenerTransform.position,
@@ -129,6 +149,7 @@ public class VivoxVoiceHandler : NetworkBehaviour
         }
         catch (System.Exception e)
         {
+            // Only log once to avoid spam
             Debug.LogWarning($"[VivoxVoiceHandler] Failed to set 3D position: {e.Message}");
         }
     }
@@ -148,16 +169,18 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
             // Try to find the handler. Vivox PlayerId might have prefixes like 'f:' or 'p:'
             VivoxVoiceHandler remoteHandler = null;
+            
+            // 1. Direct match
             if (_allHandlers.TryGetValue(participant.PlayerId, out var found))
             {
                 remoteHandler = found;
             }
             else
             {
-                // Fallback: Check if any key contains the participant PlayerId or vice versa
+                // 2. Fallback match (handle prefixes like Unity-f: or Unity-p:)
                 foreach (var kvp in _allHandlers)
                 {
-                    if (participant.PlayerId.Contains(kvp.Key) || kvp.Key.Contains(participant.PlayerId))
+                    if (participant.PlayerId.EndsWith(kvp.Key) || kvp.Key.EndsWith(participant.PlayerId))
                     {
                         remoteHandler = kvp.Value;
                         break;
@@ -175,6 +198,7 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
                 if (Physics.Raycast(startPos, direction.normalized, out RaycastHit hit, distance, _occlusionLayerMask))
                 {
+                    // If we hit something that is not the remote player, apply occlusion
                     if (hit.collider.transform != remoteHandler.transform && !hit.collider.transform.IsChildOf(remoteHandler.transform))
                     {
                         occlusionVolume = _occludedVolumeReduction; 
@@ -183,20 +207,17 @@ public class VivoxVoiceHandler : NetworkBehaviour
             }
 
             // Voice Activity Detection (VAD) to kill background hum/buzz
-            // Using threshold from VivoxManager
             float threshold = VivoxManager.Instance != null ? VivoxManager.Instance.VADThreshold : 0.02f;
             
             if (participant.AudioEnergy < threshold)
             {
-                // Mute locally if energy is below threshold to stop background static (rè rè)
+                // Mute locally if energy is below threshold to stop background static
                 participant.SetLocalVolume(-50); 
             }
             else
             {
-                // Calculate volume based on occlusion. 
-                // We avoid excessive boost (+25 was too much and caused distortion)
                 // Range is -50 to 50. 0 is original volume.
-                int baseVolume = 0; // Nominal
+                int baseVolume = 0; 
                 int vivoxVolume = Mathf.Clamp((int)((occlusionVolume - 1.0f) * 25.0f) + baseVolume, -50, 50);
                 participant.SetLocalVolume(vivoxVolume);
             }
