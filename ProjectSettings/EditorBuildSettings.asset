@@ -11,7 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Game/Scenes/DatScense/Player.unity
     guid: b489e1d42faa04e4f837201780304f99
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/DatScense/Demo_Scene_Lake_1.unity
     guid: 915dab2d844e11b4686801e1702d334c
   - enabled: 1

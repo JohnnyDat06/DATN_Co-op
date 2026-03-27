@@ -134,8 +134,15 @@ public class VivoxManager : MonoBehaviour
             return;
         }
 
+        if (_joinedChannelName == channelName)
+        {
+            Debug.Log($"[VivoxManager] Already in channel: {channelName}");
+            return;
+        }
+
         try
         {
+            Debug.Log($"[VivoxManager] Joining channel: {channelName} (Positional: {isPositional})...");
             if (isPositional)
             {
                 Channel3DProperties properties = new Channel3DProperties(_audibleDistance, _conversationalDistance, _rolloff, _distanceModel);
@@ -146,8 +153,8 @@ public class VivoxManager : MonoBehaviour
                 await VivoxService.Instance.JoinGroupChannelAsync(channelName, ChatCapability.AudioOnly);
             }
 
-            _joinedChannelName = channelName; // Chỉ gán sau khi Join thành công
-            Debug.Log($"[VivoxManager] Joined channel: {channelName}");
+            _joinedChannelName = channelName;
+            Debug.Log($"[VivoxManager] Successfully joined channel: {channelName}");
         }
         catch (Exception e)
         {

@@ -3,6 +3,7 @@ using Unity.Services.Vivox;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.InputSystem;
 
 public class VoiceDebugUI : MonoBehaviour
 {
@@ -12,7 +13,7 @@ public class VoiceDebugUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI _statusText;
     [SerializeField] private TextMeshProUGUI _energyValueText;
 
-    private bool _isVisible = true;
+    private bool _isVisible = false;
 
     private void Start()
     {
@@ -20,20 +21,30 @@ public class VoiceDebugUI : MonoBehaviour
         if (_panel == null)
         {
             // If not assigned, try to find a child panel
-            _panel = transform.GetChild(0).gameObject;
+            if (transform.childCount > 0)
+                _panel = transform.GetChild(0).gameObject;
+        }
+        
+        if (_panel != null)
+        {
+            _panel.SetActive(_isVisible);
         }
     }
 
     private void Update()
     {
-        // Toggle UI visibility with 'V' key
-        if (Input.GetKeyDown(KeyCode.V))
+        // Toggle UI visibility with 'V' key using New Input System
+        if (Keyboard.current != null && Keyboard.current.vKey.wasPressedThisFrame)
         {
             _isVisible = !_isVisible;
-            _panel.SetActive(_isVisible);
+            if (_panel != null)
+            {
+                _panel.SetActive(_isVisible);
+                Debug.Log($"[VoiceDebugUI] UI Visibility: {_isVisible}");
+            }
         }
 
-        if (!_isVisible) return;
+        if (!_isVisible || _panel == null) return;
 
         UpdateStatus();
         UpdateEnergy();
@@ -47,17 +58,21 @@ public class VoiceDebugUI : MonoBehaviour
             return;
         }
 
-        string status = VivoxManager.Instance.IsLoggedIn ? "Logged In" : "Not Logged In";
+        string status = VivoxManager.Instance.IsLoggedIn ? "<color=green>Logged In</color>" : "<color=red>Not Logged In</color>";
         string channel = !string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName) 
-            ? VivoxManager.Instance.JoinedChannelName 
-            : "None";
+            ? $"<color=yellow>{VivoxManager.Instance.JoinedChannelName}</color>" 
+            : "<color=gray>None</color>";
         
-        if (_statusText != null) _statusText.text = $"Status: {status}\nChannel: {channel}";
+        bool isMuted = VivoxManager.Instance.IsMicrophoneMuted();
+        string muteStatus = isMuted ? "<color=red>MUTED</color>" : "<color=green>UNMUTED</color>";
+
+        if (_statusText != null) 
+            _statusText.text = $"Status: {status}\nChannel: {channel}\nMic: {muteStatus}\nKey: [V] Debug, [H] Mute";
     }
 
     private void UpdateEnergy()
     {
-        if (VivoxService.Instance == null || string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
+        if (VivoxManager.Instance == null || string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
         {
             if (_energyBar != null) _energyBar.fillAmount = 0;
             if (_energyValueText != null) _energyValueText.text = "0%";
@@ -66,22 +81,28 @@ public class VoiceDebugUI : MonoBehaviour
 
         // Find local participant energy
         double energy = 0;
-        if (VivoxService.Instance.ActiveChannels.TryGetValue(VivoxManager.Instance.JoinedChannelName, out var participants))
+        try 
         {
-            foreach (var participant in participants)
+            if (VivoxService.Instance.ActiveChannels.TryGetValue(VivoxManager.Instance.JoinedChannelName, out var participants))
             {
-                if (participant.IsSelf)
+                foreach (var participant in participants)
                 {
-                    energy = participant.AudioEnergy;
-                    break;
+                    if (participant.IsSelf)
+                    {
+                        energy = participant.AudioEnergy;
+                        break;
+                    }
                 }
             }
+        }
+        catch (System.Exception)
+        {
+            // Vivox might not be ready
         }
 
         if (_energyBar != null)
         {
             _energyBar.fillAmount = (float)energy;
-            // Color feedback: Green for low, Red for peaking
             _energyBar.color = Color.Lerp(Color.green, Color.red, (float)energy);
         }
         
