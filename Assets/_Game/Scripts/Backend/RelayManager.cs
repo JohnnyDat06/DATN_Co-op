@@ -52,6 +52,12 @@ public class RelayManager : MonoBehaviour
             // 4. Start Host
             NetworkManager.Singleton.StartHost();
 
+            // 5. Cập nhật tên channel cho Vivox
+            if (VivoxManager.Instance != null)
+            {
+                VivoxManager.Instance.SetChannelName(joinCode);
+            }
+
             OnHostCreated?.Invoke(joinCode);
             Debug.Log($"[RelayManager] Host created. JoinCode: {joinCode}");
             return joinCode;
@@ -84,6 +90,12 @@ public class RelayManager : MonoBehaviour
 
             // 3. Start Client
             NetworkManager.Singleton.StartClient();
+
+            // 4. Cập nhật tên channel cho Vivox
+            if (VivoxManager.Instance != null)
+            {
+                VivoxManager.Instance.SetChannelName(joinCode);
+            }
 
             OnClientJoined?.Invoke();
             Debug.Log($"[RelayManager] Client joined. JoinCode: {joinCode}");

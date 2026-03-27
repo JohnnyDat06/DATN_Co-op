@@ -60,7 +60,10 @@ public class VivoxVoiceHandler : NetworkBehaviour
     {
         if (!string.IsNullOrEmpty(_vivoxId))
         {
-            _allHandlers.Remove(_vivoxId);
+            if (_allHandlers.TryGetValue(_vivoxId, out var handler) && handler == this)
+            {
+                _allHandlers.Remove(_vivoxId);
+            }
         }
 
         if (IsOwner && VivoxManager.Instance != null)
@@ -71,19 +74,13 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
     private async void JoinVoiceChannel()
     {
-        if (VivoxManager.Instance == null)
-        {
-            Debug.LogError("[VivoxVoiceHandler] VivoxManager instance not found!");
-            return;
-        }
+        if (VivoxManager.Instance == null) return;
 
-        // Retry mechanism in case Authentication or Vivox isn't ready immediately
         int retries = 0;
-        while (retries < 10) // Increased retries
+        while (retries < 5)
         {
             try
             {
-                Debug.Log($"[VivoxVoiceHandler] Player {OwnerClientId} attempting to login and join voice (Attempt {retries + 1})...");
                 await VivoxManager.Instance.LoginAsync();
                 
                 if (IsOwner && AuthenticationService.Instance.IsSignedIn)
@@ -91,28 +88,26 @@ public class VivoxVoiceHandler : NetworkBehaviour
                     string currentId = AuthenticationService.Instance.PlayerId;
                     if (_syncedVivoxId.Value.ToString() != currentId)
                     {
-                        Debug.Log($"[VivoxVoiceHandler] Updating synced Vivox ID to: {currentId}");
                         _syncedVivoxId.Value = currentId;
-                        // Local registration will happen via OnValueChanged or the initial call
                         RegisterHandler(currentId);
                     }
                 }
 
+                // Luôn cố gắng join channel mặc định
                 await VivoxManager.Instance.JoinChannelAsync(VivoxManager.Instance.DefaultChannelName, true);
                 
-                if (VivoxManager.Instance.IsLoggedIn && !string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
+                if (!string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
                 {
-                    Debug.Log($"[VivoxVoiceHandler] Successfully joined voice channel: {VivoxManager.Instance.JoinedChannelName}");
                     break;
                 }
             }
             catch (System.Exception e)
             {
-                Debug.LogWarning($"[VivoxVoiceHandler] Join attempt {retries + 1} failed: {e.Message}");
+                Debug.LogWarning($"[VivoxVoiceHandler] Join attempt failed: {e.Message}");
             }
 
             retries++;
-            await System.Threading.Tasks.Task.Delay(2000); // Wait 2 seconds before retry
+            await System.Threading.Tasks.Task.Delay(1000);
         }
     }
 
@@ -123,6 +118,11 @@ public class VivoxVoiceHandler : NetworkBehaviour
         if (IsOwner)
         {
             UpdatePositions();
+        }
+        
+        // Luôn chạy Occlusion/VAD cho local player để xử lý âm lượng của người khác
+        if (IsOwner)
+        {
             HandleOcclusion();
         }
     }
@@ -130,28 +130,23 @@ public class VivoxVoiceHandler : NetworkBehaviour
     private void UpdatePositions()
     {
         if (VivoxManager.Instance == null || string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName)) return;
-
-        // Ensure we are logged in and in a channel
         if (!VivoxManager.Instance.IsLoggedIn) return;
 
+        // Vị trí của người nghe (Listener) luôn là Camera hoặc chính mình
         Transform listenerTransform = Camera.main != null ? Camera.main.transform : transform;
         
         try 
         {
-            // Set both speaker and listener position for the local player
+            // Set3DPosition cho local player: cập nhật cả vị trí nói (speaker) và vị trí nghe (listener)
             VivoxService.Instance.Set3DPosition(
-                transform.position,
-                listenerTransform.position,
-                listenerTransform.forward,
-                listenerTransform.up,
+                transform.position,             // Vị trí miệng người nói
+                listenerTransform.position,      // Vị trí tai người nghe
+                listenerTransform.forward,       // Hướng nhìn
+                listenerTransform.up,            // Hướng lên
                 VivoxManager.Instance.JoinedChannelName
             );
         }
-        catch (System.Exception e)
-        {
-            // Only log once to avoid spam
-            Debug.LogWarning($"[VivoxVoiceHandler] Failed to set 3D position: {e.Message}");
-        }
+        catch (System.Exception) { }
     }
 
     private void HandleOcclusion()
@@ -167,24 +162,15 @@ public class VivoxVoiceHandler : NetworkBehaviour
         {
             if (participant.IsSelf) continue;
 
-            // Try to find the handler. Vivox PlayerId might have prefixes like 'f:' or 'p:'
+            // Tìm remote handler dựa trên PlayerId (Vivox ID thường chứa PlayerId bên trong)
             VivoxVoiceHandler remoteHandler = null;
-            
-            // 1. Direct match
-            if (_allHandlers.TryGetValue(participant.PlayerId, out var found))
+            foreach (var kvp in _allHandlers)
             {
-                remoteHandler = found;
-            }
-            else
-            {
-                // 2. Fallback match (handle prefixes like Unity-f: or Unity-p:)
-                foreach (var kvp in _allHandlers)
+                // So khớp linh hoạt hơn vì ID Vivox có thể có prefix
+                if (participant.PlayerId.Contains(kvp.Key) || kvp.Key.Contains(participant.PlayerId))
                 {
-                    if (participant.PlayerId.EndsWith(kvp.Key) || kvp.Key.EndsWith(participant.PlayerId))
-                    {
-                        remoteHandler = kvp.Value;
-                        break;
-                    }
+                    remoteHandler = kvp.Value;
+                    break;
                 }
             }
 
@@ -198,7 +184,6 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
                 if (Physics.Raycast(startPos, direction.normalized, out RaycastHit hit, distance, _occlusionLayerMask))
                 {
-                    // If we hit something that is not the remote player, apply occlusion
                     if (hit.collider.transform != remoteHandler.transform && !hit.collider.transform.IsChildOf(remoteHandler.transform))
                     {
                         occlusionVolume = _occludedVolumeReduction; 
@@ -206,19 +191,17 @@ public class VivoxVoiceHandler : NetworkBehaviour
                 }
             }
 
-            // Voice Activity Detection (VAD) to kill background hum/buzz
-            float threshold = VivoxManager.Instance != null ? VivoxManager.Instance.VADThreshold : 0.02f;
+            // Logic VAD & Volume
+            // Nếu không tìm thấy Handler, vẫn để volume = 0 (bình thường) thay vì mute
+            int vivoxVolume = (occlusionVolume < 1.0f) ? -15 : 0; 
             
-            if (participant.AudioEnergy < threshold)
+            // Chỉ mute hoàn toàn nếu năng lượng quá thấp (tránh nhiễu nền)
+            if (participant.AudioEnergy < 0.001f) // Ngưỡng rất thấp
             {
-                // Mute locally if energy is below threshold to stop background static
-                participant.SetLocalVolume(-50); 
+                participant.SetLocalVolume(-50);
             }
             else
             {
-                // Range is -50 to 50. 0 is original volume.
-                int baseVolume = 0; 
-                int vivoxVolume = Mathf.Clamp((int)((occlusionVolume - 1.0f) * 25.0f) + baseVolume, -50, 50);
                 participant.SetLocalVolume(vivoxVolume);
             }
         }

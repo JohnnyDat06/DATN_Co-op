@@ -46,6 +46,13 @@ public class VivoxManager : MonoBehaviour
     public string JoinedChannelName => _joinedChannelName;
     public string DefaultChannelName => _channelName;
 
+    public void SetChannelName(string newName)
+    {
+        if (string.IsNullOrEmpty(newName)) return;
+        _channelName = newName;
+        Debug.Log($"[VivoxManager] Channel name updated to: {newName}");
+    }
+
     private void OnValidate()
     {
         if (Application.isPlaying && _isLoggedIn)
@@ -134,7 +141,6 @@ public class VivoxManager : MonoBehaviour
     {
         if (_isInitialized) return;
         
-        // If already initializing, wait for that task instead of starting a new one
         if (_initializeTask != null)
         {
             await _initializeTask;
@@ -149,12 +155,20 @@ public class VivoxManager : MonoBehaviour
     {
         try
         {
-            Debug.Log("[VivoxManager] Starting initialization...");
-            await UnityServices.InitializeAsync();
+            Debug.Log("[VivoxManager] Waiting for Unity Services to be initialized...");
             
-            if (!AuthenticationService.Instance.IsSignedIn)
+            // Đợi cho đến khi Unity Services được khởi tạo bởi AuthManager
+            while (UnityServices.State == ServicesInitializationState.Uninitialized)
             {
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                await Task.Delay(500);
+            }
+
+            if (UnityServices.State == ServicesInitializationState.Initializing)
+            {
+                while (UnityServices.State == ServicesInitializationState.Initializing)
+                {
+                    await Task.Delay(100);
+                }
             }
 
             await VivoxService.Instance.InitializeAsync();
@@ -164,14 +178,14 @@ public class VivoxManager : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError($"[VivoxManager] Initialization failed: {e.Message}");
-            _initializeTask = null; // Allow retrying on failure
+            _initializeTask = null;
         }
     }
 
     public async Task LoginAsync(string displayName = null)
     {
-        if (!_isInitialized) await InitializeAsync();
         if (_isLoggedIn) return;
+        if (!_isInitialized) await InitializeAsync();
 
         if (_loginTask != null)
         {
@@ -189,16 +203,25 @@ public class VivoxManager : MonoBehaviour
         {
             if (!AuthenticationService.Instance.IsSignedIn)
             {
-                Debug.Log("[VivoxManager] Not signed in, signing in anonymously...");
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                Debug.Log("[VivoxManager] Waiting for Authentication...");
+                int timeout = 0;
+                while (!AuthenticationService.Instance.IsSignedIn && timeout < 50)
+                {
+                    await Task.Delay(200);
+                    timeout++;
+                }
             }
 
-            // Use PlayerId as the unique Vivox ID, but allow a custom display name.
-            string playerId = AuthenticationService.Instance.PlayerId;
-            string shortId = playerId.Length >= 4 ? playerId.Substring(0, 4) : playerId;
-            string finalDisplayName = displayName ?? $"Player_{shortId}";
+            if (!AuthenticationService.Instance.IsSignedIn)
+            {
+                throw new Exception("Authentication timeout");
+            }
 
-            Debug.Log($"[VivoxManager] Logging into Vivox as {playerId} (Display: {finalDisplayName})...");
+            string playerId = AuthenticationService.Instance.PlayerId;
+            // Đảm bảo DisplayName không bị trùng lặp quá đơn giản
+            string finalDisplayName = displayName ?? $"Player_{playerId.Substring(0, Mathf.Min(5, playerId.Length))}";
+
+            Debug.Log($"[VivoxManager] Logging into Vivox as {playerId}...");
 
             LoginOptions options = new LoginOptions
             {
@@ -209,18 +232,15 @@ public class VivoxManager : MonoBehaviour
             await VivoxService.Instance.LoginAsync(options);
             _isLoggedIn = true;
             
-            // Apply initial volume settings
             ApplyVolumeSettings();
-
-            // Ensure microphone is UNMUTED by default when logging in
             VivoxService.Instance.UnmuteInputDevice();
             
-            Debug.Log($"[VivoxManager] Logged in successfully. Mic UNMUTED.");
+            Debug.Log($"[VivoxManager] Logged in successfully.");
         }
         catch (Exception e)
         {
             Debug.LogError($"[VivoxManager] Login failed: {e.Message}");
-            _loginTask = null; // Allow retrying on failure
+            _loginTask = null;
         }
     }
 
