@@ -71,9 +71,30 @@ public class VivoxVoiceHandler : NetworkBehaviour
             return;
         }
 
-        Debug.Log($"[VivoxVoiceHandler] Player {OwnerClientId} joining voice channel...");
-        await VivoxManager.Instance.LoginAsync();
-        await VivoxManager.Instance.JoinChannelAsync(VivoxManager.Instance.DefaultChannelName, true);
+        // Retry mechanism in case Authentication or Vivox isn't ready immediately
+        int retries = 0;
+        while (retries < 5)
+        {
+            try
+            {
+                Debug.Log($"[VivoxVoiceHandler] Player {OwnerClientId} joining voice channel (Attempt {retries + 1})...");
+                await VivoxManager.Instance.LoginAsync();
+                await VivoxManager.Instance.JoinChannelAsync(VivoxManager.Instance.DefaultChannelName, true);
+                
+                if (VivoxManager.Instance.IsLoggedIn && !string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
+                {
+                    Debug.Log("[VivoxVoiceHandler] Successfully joined voice channel.");
+                    break;
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[VivoxVoiceHandler] Join attempt {retries + 1} failed: {e.Message}");
+            }
+
+            retries++;
+            await System.Threading.Tasks.Task.Delay(2000); // Wait 2 seconds before retry
+        }
     }
 
     private void Update()

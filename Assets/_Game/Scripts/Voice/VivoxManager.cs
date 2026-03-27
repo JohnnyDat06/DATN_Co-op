@@ -30,7 +30,7 @@ public class VivoxManager : MonoBehaviour
     [Range(-50, 50)]
     [SerializeField] private int _micGain = 0;
     [Range(0.001f, 0.1f)]
-    [SerializeField] private float _vadThreshold = 0.02f;
+    [SerializeField] private float _vadThreshold = 0.005f;
 
     public int MasterVolume => _masterVolume;
     public int MicGain => _micGain;
@@ -187,9 +187,14 @@ public class VivoxManager : MonoBehaviour
     {
         try
         {
+            // Use PlayerId as the unique Vivox ID, but allow a custom display name.
+            // Ensure displayName is somewhat unique if possible to avoid conflicts.
+            string playerId = AuthenticationService.Instance.PlayerId;
+            string finalDisplayName = displayName ?? $"Player_{playerId.Substring(0, 4)}";
+
             LoginOptions options = new LoginOptions
             {
-                DisplayName = displayName ?? AuthenticationService.Instance.PlayerId,
+                DisplayName = finalDisplayName,
                 ParticipantUpdateFrequency = ParticipantPropertyUpdateFrequency.TenPerSecond
             };
 
@@ -198,8 +203,11 @@ public class VivoxManager : MonoBehaviour
             
             // Apply initial volume settings
             ApplyVolumeSettings();
+
+            // Ensure microphone is UNMUTED by default when logging in
+            VivoxService.Instance.UnmuteInputDevice();
             
-            Debug.Log("[VivoxManager] Logged in successfully.");
+            Debug.Log($"[VivoxManager] Logged in successfully as {finalDisplayName}. Mic UNMUTED.");
         }
         catch (Exception e)
         {
