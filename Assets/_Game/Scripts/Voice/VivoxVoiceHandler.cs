@@ -9,7 +9,9 @@ public class VivoxVoiceHandler : NetworkBehaviour
 {
     [Header("Occlusion Settings")]
     [SerializeField] private LayerMask _occlusionLayerMask = 1 << 0; // Default layer
+    [Range(0f, 1f)]
     [SerializeField] private float _occludedVolumeReduction = 0.5f;
+    [Range(0.05f, 1f)]
     [SerializeField] private float _occlusionCheckInterval = 0.2f;
 
     private static Dictionary<string, VivoxVoiceHandler> _allHandlers = new Dictionary<string, VivoxVoiceHandler>();
@@ -71,7 +73,7 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
         Debug.Log($"[VivoxVoiceHandler] Player {OwnerClientId} joining voice channel...");
         await VivoxManager.Instance.LoginAsync();
-        await VivoxManager.Instance.JoinChannelAsync("MainLobby", true);
+        await VivoxManager.Instance.JoinChannelAsync(VivoxManager.Instance.DefaultChannelName, true);
     }
 
     private void Update()
@@ -123,9 +125,28 @@ public class VivoxVoiceHandler : NetworkBehaviour
         {
             if (participant.IsSelf) continue;
 
-            if (_allHandlers.TryGetValue(participant.PlayerId, out var remoteHandler))
+            // Try to find the handler. Vivox PlayerId might have prefixes like 'f:' or 'p:'
+            VivoxVoiceHandler remoteHandler = null;
+            if (_allHandlers.TryGetValue(participant.PlayerId, out var found))
             {
-                float volume = 1.0f;
+                remoteHandler = found;
+            }
+            else
+            {
+                // Fallback: Check if any key contains the participant PlayerId or vice versa
+                foreach (var kvp in _allHandlers)
+                {
+                    if (participant.PlayerId.Contains(kvp.Key) || kvp.Key.Contains(participant.PlayerId))
+                    {
+                        remoteHandler = kvp.Value;
+                        break;
+                    }
+                }
+            }
+
+            float occlusionVolume = 1.0f;
+            if (remoteHandler != null)
+            {
                 Vector3 startPos = transform.position + Vector3.up * 1.5f;
                 Vector3 endPos = remoteHandler.transform.position + Vector3.up * 1.5f;
                 Vector3 direction = endPos - startPos;
@@ -135,13 +156,27 @@ public class VivoxVoiceHandler : NetworkBehaviour
                 {
                     if (hit.collider.transform != remoteHandler.transform && !hit.collider.transform.IsChildOf(remoteHandler.transform))
                     {
-                        volume = _occludedVolumeReduction;
+                        occlusionVolume = _occludedVolumeReduction; 
                     }
                 }
+            }
 
-                // Map 0.0 - 1.0 volume to -50 to 50 range for Vivox 16+ API
-                // Note: SetLocalVolume(0) is original volume, negative is quieter, positive is louder.
-                int vivoxVolume = Mathf.Clamp((int)((volume - 1.0f) * 50.0f), -50, 50);
+            // Voice Activity Detection (VAD) to kill background hum/buzz
+            // Using threshold from VivoxManager
+            float threshold = VivoxManager.Instance != null ? VivoxManager.Instance.VADThreshold : 0.02f;
+            
+            if (participant.AudioEnergy < threshold)
+            {
+                // Mute locally if energy is below threshold to stop background static (rè rè)
+                participant.SetLocalVolume(-50); 
+            }
+            else
+            {
+                // Calculate volume based on occlusion. 
+                // We avoid excessive boost (+25 was too much and caused distortion)
+                // Range is -50 to 50. 0 is original volume.
+                int baseVolume = 0; // Nominal
+                int vivoxVolume = Mathf.Clamp((int)((occlusionVolume - 1.0f) * 25.0f) + baseVolume, -50, 50);
                 participant.SetLocalVolume(vivoxVolume);
             }
         }
