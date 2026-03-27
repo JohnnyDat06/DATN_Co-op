@@ -3,7 +3,17 @@ guid: 3b16b2fc420ae7d45bf6e89aa76d77b0
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_ENV_plants_village
+    second: {fileID: 2100000, guid: 499f43817bf37ba4eb1c10c81dd059cd, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_03
+    second: {fileID: 2100000, guid: 87a6511928b61014fb73d8db7499d0a6, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

@@ -3,7 +3,22 @@ guid: 57699b87c86ddd5439d48339d02d6b31
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_chains
+    second: {fileID: 2100000, guid: 241bf43e40ef6b146918a1774bd3a093, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_ember
+    second: {fileID: 2100000, guid: a197d9d863fce8749ae486bc7619bf8b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_metal_02
+    second: {fileID: 2100000, guid: 5d6aaf8b91c17034fb6b7d52d481ac21, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

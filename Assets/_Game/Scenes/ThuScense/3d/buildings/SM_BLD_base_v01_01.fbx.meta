@@ -8,7 +8,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: M_stonebrick_02
-    second: {fileID: 2100000, guid: aa92ee7f6d361de4aa76f6289d3aa3d3, type: 2}
+    second: {fileID: 2100000, guid: 724409ba2ecb75047981631fa42178be, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
