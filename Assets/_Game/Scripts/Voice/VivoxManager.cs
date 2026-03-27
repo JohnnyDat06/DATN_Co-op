@@ -187,10 +187,18 @@ public class VivoxManager : MonoBehaviour
     {
         try
         {
+            if (!AuthenticationService.Instance.IsSignedIn)
+            {
+                Debug.Log("[VivoxManager] Not signed in, signing in anonymously...");
+                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+
             // Use PlayerId as the unique Vivox ID, but allow a custom display name.
-            // Ensure displayName is somewhat unique if possible to avoid conflicts.
             string playerId = AuthenticationService.Instance.PlayerId;
-            string finalDisplayName = displayName ?? $"Player_{playerId.Substring(0, 4)}";
+            string shortId = playerId.Length >= 4 ? playerId.Substring(0, 4) : playerId;
+            string finalDisplayName = displayName ?? $"Player_{shortId}";
+
+            Debug.Log($"[VivoxManager] Logging into Vivox as {playerId} (Display: {finalDisplayName})...");
 
             LoginOptions options = new LoginOptions
             {
@@ -207,7 +215,7 @@ public class VivoxManager : MonoBehaviour
             // Ensure microphone is UNMUTED by default when logging in
             VivoxService.Instance.UnmuteInputDevice();
             
-            Debug.Log($"[VivoxManager] Logged in successfully as {finalDisplayName}. Mic UNMUTED.");
+            Debug.Log($"[VivoxManager] Logged in successfully. Mic UNMUTED.");
         }
         catch (Exception e)
         {
