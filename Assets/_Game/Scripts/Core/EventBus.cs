@@ -31,7 +31,7 @@ public static class EventBus
     /// <summary>
     /// Publisher: CheckpointTrigger | Subscriber: CheckpointManager, CloudSaveManager
     /// </summary>
-    public static event Action<string, Vector3> OnCheckpointReached;
+    public static event Action<string, Vector3, Vector3> OnCheckpointReached;
 
     // ─── Interactable ─────────────────────────────────────────────────────────
 
@@ -144,8 +144,8 @@ public static class EventBus
         => OnLevelCompleted?.Invoke(levelIndex);
 
     /// <summary>CheckpointTrigger raises this khi chạm checkpoint.</summary>
-    public static void RaiseCheckpointReached(string checkpointId, Vector3 spawnPos)
-        => OnCheckpointReached?.Invoke(checkpointId, spawnPos);
+    public static void RaiseCheckpointReached(string checkpointId, Vector3 hostSpawnPos, Vector3 clientSpawnPos)
+        => OnCheckpointReached?.Invoke(checkpointId, hostSpawnPos, clientSpawnPos);
 
     /// <summary>InteractableBase raises this khi được kích hoạt.</summary>
     public static void RaiseInteractableActivated(string interactableId)
