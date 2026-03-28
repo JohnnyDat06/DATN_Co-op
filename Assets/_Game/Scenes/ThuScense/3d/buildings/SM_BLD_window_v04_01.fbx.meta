@@ -14,6 +14,21 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: M_rooftiles_01
     second: {fileID: 2100000, guid: b0b01dbb8d401be4ba65e286eb1b88fe, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wall_02
+    second: {fileID: 2100000, guid: 3aa31834be0f3ac418e066cfb1b10175, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_05
+    second: {fileID: 2100000, guid: 7bd2aacb79d78114c8976eb108bf4cce, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_06
+    second: {fileID: 2100000, guid: d3d8a3fece72e9240ad61fb160633772, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
