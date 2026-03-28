@@ -3,7 +3,12 @@ guid: 579084d9b86e40344b4323f556e886b7
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_planks_05
+    second: {fileID: 2100000, guid: c1a0ccbf7f7572948b0e04efc74ba80a, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

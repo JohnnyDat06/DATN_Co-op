@@ -9,6 +9,16 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: M_food
     second: {fileID: 2100000, guid: 46b8ce8dc1a09ef49a5960e3922ef325, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_planks_01
+    second: {fileID: 2100000, guid: abfa6e663e3b5bc4aa8f4b58f3f4f0e1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_planks_03
+    second: {fileID: 2100000, guid: 5b0430dd78af96e40a9932d3d2d2bba0, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

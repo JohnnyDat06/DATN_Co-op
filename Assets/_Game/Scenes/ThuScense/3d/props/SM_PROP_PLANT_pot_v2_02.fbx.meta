@@ -9,6 +9,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: M_PROP_potplants
     second: {fileID: 2100000, guid: 793678ba0e690444bbd9e1a9f4c288fa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_07
+    second: {fileID: 2100000, guid: 92fe6a6ac5a5aae4ead4125847d05529, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
