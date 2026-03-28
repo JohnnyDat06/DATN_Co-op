@@ -88,7 +88,7 @@ public class PlayerController : NetworkBehaviour
         HandleJump();
         HandleRoll();
         HandleAirDash();
-        HandleAirGlide();
+        // HandleAirGlide(); // Tắt tính năng bay lơ lửng (Glide) theo yêu cầu
         HandleWallClimb();
         HandleMovement(); // Luôn cuối cùng — override velocity sau các force
     }
@@ -188,6 +188,9 @@ public class PlayerController : NetworkBehaviour
     private void HandleJump()
     {
         if (!_input.JumpPressed) return;
+
+        // Chặn nhảy nếu đang thực hiện Dash/Roll hoặc Slide dưới đất
+        if (_fsm.CurrentStateType is PlayerStateType.DashOnGround or PlayerStateType.GroundSlide) return;
 
         bool canJump = _isGrounded && _jumpCount == 0;
         bool canDoubleJump = !_isGrounded && _jumpCount < _config.MaxJumpCount;

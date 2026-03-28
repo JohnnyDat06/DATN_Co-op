@@ -85,10 +85,6 @@ public class PlayerStateMachine : NetworkBehaviour
         _currentState = _states[newState];
         _currentState.Enter();
         OnStateChanged?.Invoke(oldState, newState);
-
-#if UNITY_EDITOR || DEBUG_BUILD
-        Debug.Log($"[PlayerFSM] {oldState} → {newState} (Sync)");
-#endif
     }
 
     private void Update()
