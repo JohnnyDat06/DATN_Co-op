@@ -30,5 +30,6 @@ EditorBuildSettings:
     path: Assets/_Game/Scenes/ThuScense/MapDemo.unity
     guid: 06689bd92c7c8f941ace6bd93011f3b2
   m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 99f9c9493070a9d4c979a8fec7c5a8d3, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: bf667e48af0f42347a6194a2b89dba60, type: 3}
   m_UseUCBPForAssetBundles: 0
