@@ -83,6 +83,15 @@ public class PlayerController : NetworkBehaviour
 
         // Từ đoạn này trở xuống: Liên quan đến tác động vật lý (thay đổi vận tốc, ép lực), CHỈ OWNER được làm:
         if (!IsOwner) return;
+
+        // SAFETY NET: Đảm bảo không bao giờ bị kẹt mất trọng lực "bay trên trời" nếu lỡ ngắt state đột ngột
+        if (_fsm.CurrentStateType != PlayerStateType.DashInAir && 
+            _fsm.CurrentStateType != PlayerStateType.WallHang && 
+            _fsm.CurrentStateType != PlayerStateType.AirGlide)
+        {
+            _rb.useGravity = true;
+        }
+
         HandleCrouch();
         HandleGroundSlide();
         HandleJump();
@@ -202,6 +211,9 @@ public class PlayerController : NetworkBehaviour
         if (canJump || canDoubleJump)
         {
             _input.ConsumeJumpPressed();
+
+            // Khôi phục trọng lực lập tức phòng trường hợp vừa thoát khỏi trạng thái DashInAir hoặc WallHang
+            _rb.useGravity = true;
 
             // Reset Y velocity trước khi nhảy để lực nhất quán
             _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);

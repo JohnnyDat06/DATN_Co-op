@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// PlayerHealth — Quản lý HP player, implement IDamageable.
+/// PlayerHealth — Quản lý HP player, implement IDamageableEnemy.
 /// Khi HP về 0, fire EventBus.OnPlayerDied — không tự respawn.
 /// SRS §4.1.3
 /// </summary>
