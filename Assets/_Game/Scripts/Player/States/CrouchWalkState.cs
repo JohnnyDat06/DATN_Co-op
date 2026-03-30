@@ -24,6 +24,13 @@ public class CrouchWalkState : PlayerStateBase
             Machine.TransitionTo(PlayerStateType.CrouchIdle);
             return;
         }
+
+        // Attack
+        if (Input.AttackPressed && Machine.GetComponent<PlayerController>().IsGrounded)
+        {
+            Machine.TransitionTo(PlayerStateType.Attack1);
+            return;
+        }
     }
 
     public override void Exit() { }

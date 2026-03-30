@@ -35,6 +35,10 @@ public class PlayerAnimator : MonoBehaviour
     private static readonly int VERTICAL_SPEED       = Animator.StringToHash("VerticalSpeed");
     private static readonly int DASH_TRIGGER         = Animator.StringToHash("DashTrigger");
     private static readonly int GROUND_DASH_TRIGGER  = Animator.StringToHash("GroundDashTrigger");
+    private static readonly int ATTACK1_TRIGGER      = Animator.StringToHash("Attack1Trigger");
+    private static readonly int ATTACK2_TRIGGER      = Animator.StringToHash("Attack2Trigger");
+    private static readonly int ATTACK3_TRIGGER      = Animator.StringToHash("Attack3Trigger");
+    private static readonly int ATTACK_COUNT         = Animator.StringToHash("AttackCount");
 
     private void Awake()
     {
@@ -67,6 +71,10 @@ public class PlayerAnimator : MonoBehaviour
         
         // Multiplayer Proxy Client sẽ bị NetworkTransform thiết lập vị trí mà không sinh vận tốc Rigidbody.
         // Căn cứ hoàn toàn vào FSM State được đồng bộ qua mạng để chạy Animation chuẩn xác.
+        // Bật Root Motion riêng biệt cho các đòn tấn công để player tiến lên theo animation
+        bool isAttacking = currentState is PlayerStateType.Attack1 or PlayerStateType.Attack2 or PlayerStateType.Attack3;
+        _animator.applyRootMotion = isAttacking;
+
         bool isJumpRising  = currentState is PlayerStateType.Jump or PlayerStateType.DoubleJump or PlayerStateType.WallJump;
         
         // Logic phân biệt rơi tự do (Walk Off) và rơi sau khi nhảy (Jump Loop)
@@ -136,6 +144,25 @@ public class PlayerAnimator : MonoBehaviour
                 case PlayerStateType.Respawning:   _animator.SetTrigger(RESPAWN_TRIGGER);      break;
                 case PlayerStateType.DashInAir:    _animator.SetTrigger(DASH_TRIGGER);         break;
                 case PlayerStateType.DashOnGround: _animator.SetTrigger(GROUND_DASH_TRIGGER);  break;
+
+                case PlayerStateType.Attack1:
+                    _animator.SetTrigger(ATTACK1_TRIGGER);
+                    _animator.SetInteger(ATTACK_COUNT, 1);
+                    break;
+                case PlayerStateType.Attack2:
+                    _animator.SetTrigger(ATTACK2_TRIGGER);
+                    _animator.SetInteger(ATTACK_COUNT, 2);
+                    break;
+                case PlayerStateType.Attack3:
+                    _animator.SetTrigger(ATTACK3_TRIGGER);
+                    _animator.SetInteger(ATTACK_COUNT, 3);
+                    break;
+
+                case PlayerStateType.Idle:
+                case PlayerStateType.Walk:
+                case PlayerStateType.Run:
+                    _animator.SetInteger(ATTACK_COUNT, 0);
+                    break;
             }
 
             _previousState = currentState;

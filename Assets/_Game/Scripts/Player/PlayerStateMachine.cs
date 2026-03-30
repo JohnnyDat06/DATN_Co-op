@@ -59,6 +59,9 @@ public class PlayerStateMachine : NetworkBehaviour
             { PlayerStateType.Respawning,   new RespawningState(this, _inputHandler) },
             { PlayerStateType.DashInAir,    new DashInAirState(this, _inputHandler) },
             { PlayerStateType.DashOnGround, new DashOnGroundState(this, _inputHandler) },
+            { PlayerStateType.Attack1,      new Attack1State(this, _inputHandler) },
+            { PlayerStateType.Attack2,      new Attack2State(this, _inputHandler) },
+            { PlayerStateType.Attack3,      new Attack3State(this, _inputHandler) },
         };
     }
 
