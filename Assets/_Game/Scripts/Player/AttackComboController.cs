@@ -12,16 +12,13 @@ public class AttackComboController : MonoBehaviour
     [Tooltip("Thời gian combo window mở sau khi animation bắt đầu (giây)")]
     [SerializeField] private float _comboWindowDuration = 0.6f;
 
-    [Tooltip("Thời gian delay trước khi về Idle sau đòn cuối (giây)")]
-    [SerializeField] private float _resetCooldown = 0.4f;
-
     // Runtime state
     public int  AttackCount     { get; private set; } = 0;  // 0=không attack, 1/2/3=đòn hiện tại
     public bool ComboWindowOpen { get; private set; } = false;
     public bool NextAttackQueued { get; private set; } = false; // nhấn trong window
 
     private float _comboWindowTimer = 0f;
-    private bool  _isInCooldown     = false;
+    //private bool  _isInCooldown     = false;
 
     public const int MAX_COMBO = 3;
 
