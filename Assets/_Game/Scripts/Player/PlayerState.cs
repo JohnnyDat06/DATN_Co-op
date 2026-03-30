@@ -21,7 +21,10 @@ public enum PlayerStateType
     Dead,
     Respawning,
     DashInAir,
-    DashOnGround
+    DashOnGround,
+    Attack1,
+    Attack2,
+    Attack3
 }
 
 /// <summary>

@@ -125,10 +125,13 @@ public class PlayerController : NetworkBehaviour
 
     private void HandleMovement()
     {
-        // Block hoàn toàn khi đang dash hoặc roll — velocity do handle riêng kiểm soát
+        // Block hoàn toàn khi đang dash, roll, hoặc attack — velocity do handle riêng kiểm soát
         if (_fsm.CurrentStateType is PlayerStateType.WallHang
                                   or PlayerStateType.DashInAir
-                                  or PlayerStateType.DashOnGround) return;
+                                  or PlayerStateType.DashOnGround
+                                  or PlayerStateType.Attack1
+                                  or PlayerStateType.Attack2
+                                  or PlayerStateType.Attack3) return;
 
         if (_input.MoveInput.sqrMagnitude < 0.01f)
         {
@@ -189,8 +192,9 @@ public class PlayerController : NetworkBehaviour
     {
         if (!_input.JumpPressed) return;
 
-        // Chặn nhảy nếu đang thực hiện Dash/Roll hoặc Slide dưới đất
-        if (_fsm.CurrentStateType is PlayerStateType.DashOnGround or PlayerStateType.GroundSlide) return;
+        // Chặn nhảy nếu đang thực hiện Dash/Roll, Slide, hoặc Attack
+        if (_fsm.CurrentStateType is PlayerStateType.DashOnGround or PlayerStateType.GroundSlide
+                                  or PlayerStateType.Attack1 or PlayerStateType.Attack2 or PlayerStateType.Attack3) return;
 
         bool canJump = _isGrounded && _jumpCount == 0;
         bool canDoubleJump = !_isGrounded && _jumpCount < _config.MaxJumpCount;
@@ -278,7 +282,10 @@ public class PlayerController : NetworkBehaviour
         if (!_isGrounded) return;
         if (_fsm.CurrentStateType is PlayerStateType.GroundSlide
                                   or PlayerStateType.Dead
-                                  or PlayerStateType.Respawning) return;
+                                  or PlayerStateType.Respawning
+                                  or PlayerStateType.Attack1
+                                  or PlayerStateType.Attack2
+                                  or PlayerStateType.Attack3) return;
         if (!_input.ConsumeDashPressed()) return;
 
         // Hướng roll: ưu tiên hướng di chuyển hiện tại, fallback transform.forward

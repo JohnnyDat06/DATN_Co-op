@@ -8,6 +8,7 @@ using UnityEngine.InputSystem;
 /// Yêu cầu: CHỈ CHẠY trên máy khách là LẤY QUYỀN SỞ HỮU (IsOwner) của bản sao Player này.
 /// SRS §4.1.5
 /// </summary>
+[DefaultExecutionOrder(-100)] // Chạy trước PlayerStateMachine và PlayerController
 public class PlayerInputHandler : NetworkBehaviour
 {
     [SerializeField] private InputActionAsset _inputActions;
@@ -23,6 +24,7 @@ public class PlayerInputHandler : NetworkBehaviour
     private InputAction _pauseAction;
     private InputAction _cameraLookAction;
     private InputAction _dashAction;
+    private InputAction _attackAction;
 
     private bool  _inputLocked;
     private float _jumpBufferTimer;
@@ -59,6 +61,9 @@ public class PlayerInputHandler : NetworkBehaviour
     /// <summary>Dash pressed this frame.</summary>
     public bool DashPressed { get; private set; }
 
+    /// <summary>Attack pressed this frame.</summary>
+    public bool AttackPressed { get; private set; }
+
     // ─── Camera Properties ───────────────────────────────────────────────────
 
     /// <summary>Mouse delta.</summary>
@@ -92,6 +97,7 @@ public class PlayerInputHandler : NetworkBehaviour
         _pauseAction      = playerMap.FindAction("Pause");
         _cameraLookAction = playerMap.FindAction("CameraLook");
         _dashAction       = playerMap.FindAction("Dash");
+        _attackAction     = playerMap.FindAction("Attack");
     }
 
     public override void OnNetworkSpawn()
@@ -136,6 +142,7 @@ public class PlayerInputHandler : NetworkBehaviour
         // Reset consumed properties sau mỗi frame
         InteractPressed = false;
         PausePressed    = false;
+        AttackPressed   = false;
     }
 
     // ─── Input Reading ───────────────────────────────────────────────────────
@@ -180,6 +187,9 @@ public class PlayerInputHandler : NetworkBehaviour
         }
         DashPressed = _dashBufferTimer > 0f;
 
+        if (_attackAction != null && _attackAction.WasPressedThisFrame())
+            AttackPressed = true;
+
         // Camera
         CameraLookDelta = CameraLookEnabled
             ? (_cameraLookAction?.ReadValue<Vector2>() ?? Vector2.zero)
@@ -199,6 +209,7 @@ public class PlayerInputHandler : NetworkBehaviour
         DashPressed      = false;
         InteractPressed  = false;
         PausePressed     = false;
+        AttackPressed    = false;
         CameraLookDelta  = Vector2.zero;
     }
 
