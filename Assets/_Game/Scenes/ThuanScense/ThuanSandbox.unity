@@ -1606,7 +1606,11 @@ GameObject:
   - component: {fileID: 1703616129}
   - component: {fileID: 1703616128}
   - component: {fileID: 1703616134}
-  m_Layer: 0
+  - component: {fileID: 1703616136}
+  - component: {fileID: 1703616137}
+  - component: {fileID: 1703616138}
+  - component: {fileID: 1703616139}
+  m_Layer: 8
   m_Name: Armadil_03_Obj
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1732,7 +1736,14 @@ MonoBehaviour:
   NetworkAnimatorExpanded: 0
   AuthorityMode: 0
   m_Animator: {fileID: 1703616130}
-  TransitionStateInfoList: []
+  TransitionStateInfoList:
+  - IsCrossFadeExit: 0
+    Layer: 0
+    OriginatingState: -2089788878
+    DestinationState: 1601757581
+    TransitionDuration: 0.25
+    TriggerNameHash: 2145273271
+    TransitionIndex: 0
   AnimatorParameterEntries:
     ParameterEntries:
     - name: IsDead
@@ -1847,6 +1858,94 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &1703616136
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1703616126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 592f17d2be2fb9448b6207dc5194a38b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  eyes:
+  - {fileID: 2060468795}
+  viewAngle: 110
+  viewRadius: 15
+  closeRange: 3
+  detectionHoldTime: 3
+  _targetSwitchHysteresis: 2
+  _targetSwitchCooldown: 2
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 8
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 1
+  playerVariableName: Player
+  detectedVariableName: IsDetected
+--- !u!114 &1703616137
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1703616126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd21ee62280462247aea6324afe96bb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  _maxHealth: 100
+  CurrentHealth:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
+--- !u!136 &1703616138
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1703616126}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 1.8856343
+  m_Direction: 1
+  m_Center: {x: 0, y: 0.44281715, z: 0}
+--- !u!114 &1703616139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1703616126}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78052cb85b9af794f848213ab5a92c63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  _targetLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  _radius: 2.5
+  _damage: 20
 --- !u!1001 &1748571863
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2074,6 +2173,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3248315488105561783, guid: 687dbafc2b84b2846b9a4a7a7dae2a7e, type: 3}
   m_PrefabInstance: {fileID: 2052198310}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2060468794
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2060468795}
+  m_Layer: 8
+  m_Name: _eye
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2060468795
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2060468794}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.26488677, y: -0.26488677, z: -0.655618, w: 0.655618}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8535502743021296378}
+  m_LocalEulerAnglesHint: {x: -44, y: 0, z: -90}
 --- !u!1 &2060887959
 GameObject:
   m_ObjectHideFlags: 0
@@ -2118,7 +2248,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6608321605955018627}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-foot.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2149,7 +2279,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2368506333463153910}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-Tail01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2165,7 +2295,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2545472307953233895}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: root
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2198,7 +2328,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 121859423790501114}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-foot.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2214,7 +2344,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8537799820167962415}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-forearm.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2307,7 +2437,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1863031810173845002}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Armadil_03_Model
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2408,7 +2538,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5500419013970687916}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-Tail02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2456,7 +2586,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 963297754234432563}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-spine.003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2472,7 +2602,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1782336743195104879}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-spine.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2504,7 +2634,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2752157271086780670}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-shin.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2598,7 +2728,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4189996345695948755}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-forearm.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2614,7 +2744,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8986446382412219825}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-hand.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2630,7 +2760,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2239951279096297687}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-shin.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2662,7 +2792,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4104365460680023358}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-thigh.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2678,7 +2808,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4093337485796288656}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-spine.002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2710,7 +2840,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4016742221773733173}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-upper_arm.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2726,7 +2856,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6060886126123368827}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Armadil03_Rig
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2742,7 +2872,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8449028378285383349}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-upper_arm.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2758,7 +2888,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1905388461590355678}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-Tail03
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2898,7 +3028,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8153946933574155160}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-hand.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2914,7 +3044,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6484584159182620809}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-thigh.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2946,7 +3076,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3282403754427454256}
   - component: {fileID: 1199629187419354881}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Armadil_03
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2978,7 +3108,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8535502743021296378}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-Jaw
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2997,7 +3127,8 @@ Transform:
   m_LocalPosition: {x: 0.0000000019742663, y: 0.08927663, z: 0.008280689}
   m_LocalScale: {x: 1, y: 0.99999964, z: 0.9999996}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 2060468795}
   m_Father: {fileID: 1477919147459107852}
   m_LocalEulerAnglesHint: {x: -41.63461, y: 0.24988255, z: -179.96643}
 --- !u!4 &8537799820167962415
@@ -3040,7 +3171,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1477919147459107852}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: DEF-spine.006
   m_TagString: Untagged
   m_Icon: {fileID: 0}
