@@ -26,11 +26,16 @@ public class VivoxVoiceHandler : NetworkBehaviour
     {
         if (IsOwner)
         {
-            // Initial attempt, might be empty if services not ready
-            if (AuthenticationService.Instance.IsSignedIn)
+            // Kiểm tra an toàn xem Services đã được khởi tạo chưa trước khi truy cập Instance
+            if (Unity.Services.Core.UnityServices.State == Unity.Services.Core.ServicesInitializationState.Initialized)
             {
-                _syncedVivoxId.Value = AuthenticationService.Instance.PlayerId;
+                if (AuthenticationService.Instance.IsSignedIn)
+                {
+                    _syncedVivoxId.Value = AuthenticationService.Instance.PlayerId;
+                }
             }
+            
+            // JoinVoiceChannel đã có sẵn logic đợi khởi tạo bên trong
             JoinVoiceChannel();
         }
 
@@ -74,40 +79,76 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
     private async void JoinVoiceChannel()
     {
-        if (VivoxManager.Instance == null) return;
+        if (VivoxManager.Instance == null)
+        {
+            Debug.LogError("[VivoxVoiceHandler] VivoxManager instance is null!");
+            return;
+        }
+
+        // Đợi một chút để đảm bảo NetworkId và Ownership đã ổn định
+        await System.Threading.Tasks.Task.Delay(1000);
 
         int retries = 0;
-        while (retries < 5)
+        while (retries < 10) // Tăng số lần thử lại
         {
             try
             {
+                Debug.Log($"[VivoxVoiceHandler] Login attempt {retries + 1}...");
                 await VivoxManager.Instance.LoginAsync();
                 
-                if (IsOwner && AuthenticationService.Instance.IsSignedIn)
+                if (VivoxManager.Instance.IsLoggedIn)
                 {
-                    string currentId = AuthenticationService.Instance.PlayerId;
-                    if (_syncedVivoxId.Value.ToString() != currentId)
+                    if (IsOwner && AuthenticationService.Instance.IsSignedIn)
                     {
-                        _syncedVivoxId.Value = currentId;
+                        string currentId = AuthenticationService.Instance.PlayerId;
+                        
+                        // Cập nhật NetworkVariable để các máy khác biết PlayerId của mình
+                        if (_syncedVivoxId.Value.ToString() != currentId)
+                        {
+                            _syncedVivoxId.Value = currentId;
+                        }
+                        
+                        // Đăng ký local handler
                         RegisterHandler(currentId);
                     }
-                }
 
-                // Luôn cố gắng join channel mặc định
-                await VivoxManager.Instance.JoinChannelAsync(VivoxManager.Instance.DefaultChannelName, true);
-                
-                if (!string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
+                    // Lấy channel name từ RelayManager (thông qua DefaultChannelName)
+                    string channelToJoin = VivoxManager.Instance.DefaultChannelName;
+                    
+                    if (string.IsNullOrEmpty(channelToJoin) || channelToJoin == "MainLobby")
+                    {
+                        // Nếu vẫn là mặc định, đợi thêm chút nữa (có thể Relay chưa kịp set JoinCode)
+                        Debug.Log("[VivoxVoiceHandler] Channel name is still default/empty, waiting for Relay JoinCode...");
+                        await System.Threading.Tasks.Task.Delay(2000);
+                        channelToJoin = VivoxManager.Instance.DefaultChannelName;
+                    }
+
+                    Debug.Log($"[VivoxVoiceHandler] Attempting to join channel: {channelToJoin}");
+                    await VivoxManager.Instance.JoinChannelAsync(channelToJoin, true);
+                    
+                    if (!string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
+                    {
+                        Debug.Log($"[VivoxVoiceHandler] Successfully joined voice channel: {VivoxManager.Instance.JoinedChannelName}");
+                        break;
+                    }
+                }
+                else
                 {
-                    break;
+                    Debug.LogWarning($"[VivoxVoiceHandler] Login failed at attempt {retries + 1}, retrying...");
                 }
             }
             catch (System.Exception e)
             {
-                Debug.LogWarning($"[VivoxVoiceHandler] Join attempt failed: {e.Message}");
+                Debug.LogWarning($"[VivoxVoiceHandler] Join attempt {retries + 1} failed with error: {e.Message}");
             }
 
             retries++;
-            await System.Threading.Tasks.Task.Delay(1000);
+            await System.Threading.Tasks.Task.Delay(3000); // Tăng thời gian delay giữa các lần retry
+        }
+
+        if (!VivoxManager.Instance.IsLoggedIn)
+        {
+            Debug.LogError("[VivoxVoiceHandler] Failed to login to Vivox after all retries.");
         }
     }
 
@@ -118,11 +159,6 @@ public class VivoxVoiceHandler : NetworkBehaviour
         if (IsOwner)
         {
             UpdatePositions();
-        }
-        
-        // Luôn chạy Occlusion/VAD cho local player để xử lý âm lượng của người khác
-        if (IsOwner)
-        {
             HandleOcclusion();
         }
     }
@@ -162,12 +198,19 @@ public class VivoxVoiceHandler : NetworkBehaviour
         {
             if (participant.IsSelf) continue;
 
-            // Tìm remote handler dựa trên PlayerId (Vivox ID thường chứa PlayerId bên trong)
+            // Tìm remote handler dựa trên PlayerId
             VivoxVoiceHandler remoteHandler = null;
+            string participantId = participant.PlayerId;
+
+            // Log để debug ID (chỉ log khi có sự thay đổi hoặc theo chu kỳ dài để tránh spam)
+            // Debug.Log($"[VivoxVoiceHandler] Checking participant: {participantId}");
+
             foreach (var kvp in _allHandlers)
             {
-                // So khớp linh hoạt hơn vì ID Vivox có thể có prefix
-                if (participant.PlayerId.Contains(kvp.Key) || kvp.Key.Contains(participant.PlayerId))
+                // Logic so khớp ID cải tiến:
+                // Vivox ID thường có format "f:envId:playerId"
+                // kvp.Key là "playerId" thuần túy từ AuthenticationService
+                if (participantId.EndsWith(kvp.Key) || participantId.Contains(kvp.Key))
                 {
                     remoteHandler = kvp.Value;
                     break;
@@ -182,27 +225,35 @@ public class VivoxVoiceHandler : NetworkBehaviour
                 Vector3 direction = endPos - startPos;
                 float distance = direction.magnitude;
 
+                // Kiểm tra vật cản giữa 2 player
                 if (Physics.Raycast(startPos, direction.normalized, out RaycastHit hit, distance, _occlusionLayerMask))
                 {
+                    // Nếu trúng vật gì đó không phải là chính player đó
                     if (hit.collider.transform != remoteHandler.transform && !hit.collider.transform.IsChildOf(remoteHandler.transform))
                     {
                         occlusionVolume = _occludedVolumeReduction; 
                     }
                 }
             }
-
-            // Logic VAD & Volume
-            // Nếu không tìm thấy Handler, vẫn để volume = 0 (bình thường) thay vì mute
-            int vivoxVolume = (occlusionVolume < 1.0f) ? -15 : 0; 
-            
-            // Chỉ mute hoàn toàn nếu năng lượng quá thấp (tránh nhiễu nền)
-            if (participant.AudioEnergy < 0.001f) // Ngưỡng rất thấp
+            else
             {
-                participant.SetLocalVolume(-50);
+                // Nếu không tìm thấy handler cho participant này, có thể do chưa đồng bộ xong ID
+                // Chúng ta vẫn cho nghe nhưng có thể giới hạn volume nhẹ
+                // Debug.LogWarning($"[VivoxVoiceHandler] No handler found for participant: {participantId}");
+            }
+
+            // Áp dụng volume (Vivox volume từ -50 đến 50)
+            int targetVolume = (occlusionVolume < 1.0f) ? -15 : 0; 
+            
+            // Chỉ áp dụng volume nếu participant đang thực sự nói (AudioEnergy > 0)
+            if (participant.AudioEnergy > 1e-5) 
+            {
+                participant.SetLocalVolume(targetVolume);
             }
             else
             {
-                participant.SetLocalVolume(vivoxVolume);
+                // Giảm nhiễu nền khi không nói
+                participant.SetLocalVolume(-50);
             }
         }
     }

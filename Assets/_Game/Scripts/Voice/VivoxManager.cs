@@ -141,7 +141,7 @@ public class VivoxManager : MonoBehaviour
     {
         if (_isInitialized) return;
         
-        if (_initializeTask != null)
+        if (_initializeTask != null && !_initializeTask.IsFaulted && !_initializeTask.IsCompleted)
         {
             await _initializeTask;
             return;
@@ -155,15 +155,14 @@ public class VivoxManager : MonoBehaviour
     {
         try
         {
-            Debug.Log("[VivoxManager] Waiting for Unity Services to be initialized...");
+            Debug.Log("[VivoxManager] Initializing Unity Services and Vivox...");
             
-            // Đợi cho đến khi Unity Services được khởi tạo bởi AuthManager
-            while (UnityServices.State == ServicesInitializationState.Uninitialized)
+            // Nếu Unity Services chưa được khởi tạo, tự khởi tạo luôn (đảm bảo tính độc lập)
+            if (UnityServices.State == ServicesInitializationState.Uninitialized)
             {
-                await Task.Delay(500);
+                await UnityServices.InitializeAsync();
             }
-
-            if (UnityServices.State == ServicesInitializationState.Initializing)
+            else if (UnityServices.State == ServicesInitializationState.Initializing)
             {
                 while (UnityServices.State == ServicesInitializationState.Initializing)
                 {
@@ -171,23 +170,42 @@ public class VivoxManager : MonoBehaviour
                 }
             }
 
-            await VivoxService.Instance.InitializeAsync();
-            _isInitialized = true;
-            Debug.Log("[VivoxManager] Initialized successfully.");
+            // Kiểm tra lại lần nữa trước khi init Vivox
+            if (UnityServices.State == ServicesInitializationState.Initialized)
+            {
+                await VivoxService.Instance.InitializeAsync();
+                _isInitialized = true;
+                Debug.Log("[VivoxManager] Vivox Service initialized successfully.");
+            }
+            else
+            {
+                throw new Exception($"Unity Services failed to initialize. Current state: {UnityServices.State}");
+            }
         }
         catch (Exception e)
         {
             Debug.LogError($"[VivoxManager] Initialization failed: {e.Message}");
-            _initializeTask = null;
+            _initializeTask = null; // Reset để có thể thử lại
+            throw;
         }
     }
 
     public async Task LoginAsync(string displayName = null)
     {
         if (_isLoggedIn) return;
-        if (!_isInitialized) await InitializeAsync();
 
-        if (_loginTask != null)
+        // Đảm bảo đã initialized trước khi login
+        try 
+        {
+            await InitializeAsync();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[VivoxManager] Cannot login: Initialization failed. {e.Message}");
+            return;
+        }
+
+        if (_loginTask != null && !_loginTask.IsFaulted && !_loginTask.IsCompleted)
         {
             await _loginTask;
             return;
@@ -201,9 +219,24 @@ public class VivoxManager : MonoBehaviour
     {
         try
         {
+            // Kiểm tra Authentication
             if (!AuthenticationService.Instance.IsSignedIn)
             {
-                Debug.Log("[VivoxManager] Waiting for Authentication...");
+                Debug.Log("[VivoxManager] Waiting for Authentication (Anonymous Sign-In)...");
+                
+                // Nếu chưa sign in, thử sign in luôn nếu AuthManager chưa làm
+                if (UnityServices.State == ServicesInitializationState.Initialized)
+                {
+                    try 
+                    {
+                        await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                    }
+                    catch (Exception authEx)
+                    {
+                        Debug.LogWarning($"[VivoxManager] Manual sign-in attempt failed: {authEx.Message}. Waiting for AuthManager instead...");
+                    }
+                }
+
                 int timeout = 0;
                 while (!AuthenticationService.Instance.IsSignedIn && timeout < 50)
                 {
@@ -214,14 +247,13 @@ public class VivoxManager : MonoBehaviour
 
             if (!AuthenticationService.Instance.IsSignedIn)
             {
-                throw new Exception("Authentication timeout");
+                throw new Exception("Authentication timeout: User must be signed in to use Vivox.");
             }
 
             string playerId = AuthenticationService.Instance.PlayerId;
-            // Đảm bảo DisplayName không bị trùng lặp quá đơn giản
             string finalDisplayName = displayName ?? $"Player_{playerId.Substring(0, Mathf.Min(5, playerId.Length))}";
 
-            Debug.Log($"[VivoxManager] Logging into Vivox as {playerId}...");
+            Debug.Log($"[VivoxManager] Logging into Vivox. PlayerId: {playerId}, DisplayName: {finalDisplayName}");
 
             LoginOptions options = new LoginOptions
             {
@@ -235,12 +267,13 @@ public class VivoxManager : MonoBehaviour
             ApplyVolumeSettings();
             VivoxService.Instance.UnmuteInputDevice();
             
-            Debug.Log($"[VivoxManager] Logged in successfully.");
+            Debug.Log($"[VivoxManager] Logged in successfully to Vivox as {playerId}.");
         }
         catch (Exception e)
         {
             Debug.LogError($"[VivoxManager] Login failed: {e.Message}");
-            _loginTask = null;
+            _isLoggedIn = false;
+            _loginTask = null; // Reset để có thể thử lại
         }
     }
 
@@ -255,6 +288,13 @@ public class VivoxManager : MonoBehaviour
         {
             Debug.LogError("[VivoxManager] Cannot join channel: Login failed.");
             return;
+        }
+
+        // Nếu đang ở trong một channel khác, hãy thoát ra trước
+        if (!string.IsNullOrEmpty(_joinedChannelName) && _joinedChannelName != channelName)
+        {
+            Debug.Log($"[VivoxManager] Leaving current channel {_joinedChannelName} to join {channelName}");
+            await LeaveChannelAsync();
         }
 
         if (_joinedChannelName == channelName)
