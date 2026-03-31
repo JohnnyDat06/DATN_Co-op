@@ -3,7 +3,22 @@ guid: 95677aa3dd2018248aa42faec7eec27c
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_PROP_laundry
+    second: {fileID: 2100000, guid: fd89f221f0db07b4daff8042985af9c6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_metal_02
+    second: {fileID: 2100000, guid: 3777726387834f344b85b475bb8a9313, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_rope
+    second: {fileID: 2100000, guid: d5633d32f3ff7e4448e13ed5e8ada5ce, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

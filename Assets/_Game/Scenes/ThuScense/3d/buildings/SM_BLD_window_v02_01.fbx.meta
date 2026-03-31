@@ -9,6 +9,26 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: M_CLR_yellow_E
     second: {fileID: 2100000, guid: 6a428bb966d6a284d9bacac9b645498b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_rooftiles_01
+    second: {fileID: 2100000, guid: 1ff1fc689a470784ebd5033e5627e86f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wall_02
+    second: {fileID: 2100000, guid: b1c5de293bc496749ad907791b555b30, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_05
+    second: {fileID: 2100000, guid: a169cb3a6f24a1a4b971f86160797a51, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_06
+    second: {fileID: 2100000, guid: 1d7027e12e59dc64a8e1a5873599fe54, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

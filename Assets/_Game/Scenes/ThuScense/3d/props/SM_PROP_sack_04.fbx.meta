@@ -7,6 +7,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: M_cloth_01
+    second: {fileID: 2100000, guid: b4fc3223eda10e14eaa2384cfece7e35, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: M_food
     second: {fileID: 2100000, guid: 46b8ce8dc1a09ef49a5960e3922ef325, type: 2}
   materials:

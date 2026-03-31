@@ -7,8 +7,33 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: M_PROP_signs
+    second: {fileID: 2100000, guid: 7bd977982552fd34981801303e317413, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_metal_02
+    second: {fileID: 2100000, guid: 33a6bb03e4f3e114c869b9a8eca877e3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_rope
+    second: {fileID: 2100000, guid: 6cdc1ca050b220442b2078f653daa23f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: M_stonebrick_02
     second: {fileID: 2100000, guid: 724409ba2ecb75047981631fa42178be, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_05
+    second: {fileID: 2100000, guid: 8e114efce2a9ad54d9c16fd94778ea11, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_detail_01
+    second: {fileID: 2100000, guid: 4e911ceb3ace8204182fb7049c6c0417, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
