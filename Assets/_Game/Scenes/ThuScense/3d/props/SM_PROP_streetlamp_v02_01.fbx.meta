@@ -9,6 +9,31 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: M_CLR_yellow_E
     second: {fileID: 2100000, guid: 6a428bb966d6a284d9bacac9b645498b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_ENV_stone
+    second: {fileID: 2100000, guid: 6ad3465b9bbf6cb46a4df90f000358ac, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_metal_01
+    second: {fileID: 2100000, guid: 13b91f7a89178334bb7eba301c10fba2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_metal_02
+    second: {fileID: 2100000, guid: 8a71805835a1b354ca216d2420f774aa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_06
+    second: {fileID: 2100000, guid: a75dd31c7fa9bd8449bfec851beaae14, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_detail_01
+    second: {fileID: 2100000, guid: 5d08fb9ff650662458ce46b1033cda9e, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
