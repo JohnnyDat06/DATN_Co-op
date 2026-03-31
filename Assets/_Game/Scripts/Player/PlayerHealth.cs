@@ -3,35 +3,36 @@ using Unity.Netcode;
 using UnityEngine;
 
 /// <summary>
-/// PlayerHealth — Quản lý HP player, đồng bộ qua mạng (NGO).
-/// Khi HP về 0, chuyển sang DeadState và fire EventBus.OnPlayerDied.
+/// PlayerHealth — Quản lý HP player, implement IDamageable.
+/// Đồng bộ qua NetworkVariable để host và client đều thấy.
+/// SRS §4.1.3
 /// </summary>
 public class PlayerHealth : NetworkBehaviour, IDamageable
 {
     [SerializeField] private SOPlayerConfig _config;
     [SerializeField] private PlayerStateMachine _fsm;
 
-    /// <summary>Biến đồng bộ máu qua mạng. Chỉ Server có quyền ghi.</summary>
-    private readonly NetworkVariable<float> _networkCurrentHealth = new NetworkVariable<float>(
-        100f,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server
-    );
+    /// <summary>Máu hiện tại được đồng bộ qua mạng.</summary>
+    public NetworkVariable<float> NetworkHealth = new NetworkVariable<float>(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-    /// <summary>Máu hiện tại lấy từ NetworkVariable.</summary>
-    public float CurrentHealth => _networkCurrentHealth.Value;
+    /// <summary>Máu hiện tại (tương thích IDamageable).</summary>
+    public float CurrentHealth => NetworkHealth.Value;
 
     /// <summary>Máu tối đa từ SOPlayerConfig.</summary>
     public float MaxHealth => _config != null ? _config.MaxHealth : 100f;
 
     /// <summary>True nếu đã chết.</summary>
-    public bool IsDead => _networkCurrentHealth.Value <= 0f;
+    public bool IsDead => NetworkHealth.Value <= 0f;
 
     /// <summary>Event cục bộ để HUDController lắng nghe.</summary>
     public event Action<float, float> OnHealthChanged; // (current, max)
 
     private void Awake()
     {
+        if (_config == null)
+        {
+            Debug.LogError("[PlayerHealth] SOPlayerConfig chưa được gán trong Inspector!");
+        }
         if (_fsm == null)
         {
             _fsm = GetComponent<PlayerStateMachine>();
@@ -40,46 +41,48 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+        
         if (IsServer)
         {
-            _networkCurrentHealth.Value = MaxHealth;
+            NetworkHealth.Value = MaxHealth;
         }
 
-        // Đăng ký sự kiện thay đổi máu để cập nhật UI cục bộ
-        _networkCurrentHealth.OnValueChanged += HandleHealthChanged;
-        
-        // Cập nhật lần đầu cho UI
-        OnHealthChanged?.Invoke(_networkCurrentHealth.Value, MaxHealth);
+        NetworkHealth.OnValueChanged += OnHealthNetworkChanged;
+
+        // Cập nhật UI lần đầu
+        OnHealthChanged?.Invoke(NetworkHealth.Value, MaxHealth);
     }
 
     public override void OnNetworkDespawn()
     {
-        _networkCurrentHealth.OnValueChanged -= HandleHealthChanged;
+        base.OnNetworkDespawn();
+        NetworkHealth.OnValueChanged -= OnHealthNetworkChanged;
     }
 
-    private void HandleHealthChanged(float oldVal, float newVal)
+    private void OnHealthNetworkChanged(float oldVal, float newVal)
     {
         OnHealthChanged?.Invoke(newVal, MaxHealth);
-        
-        if (newVal <= 0f && oldVal > 0f)
-        {
-            HandleDeath();
-        }
     }
 
-    /// <summary>Gây sát thương. Chỉ thực hiện trên Server.</summary>
+    /// <summary>Gây sát thương. Chỉ Server mới có quyền thay đổi NetworkVariable.</summary>
     public void TakeDamage(float amount)
     {
-        if (!IsServer || IsDead || amount <= 0f) return;
+        if (!IsServer) return; 
+        if (IsDead || amount <= 0f) return;
 
-        _networkCurrentHealth.Value = Mathf.Max(0f, _networkCurrentHealth.Value - amount);
+        NetworkHealth.Value = Mathf.Max(0f, NetworkHealth.Value - amount);
+
+        if (IsDead) HandleDeath();
     }
 
     /// <summary>Hạ HP về 0 ngay lập tức. Dùng bởi DeathZone.</summary>
     public void InstantKill()
     {
-        if (!IsServer || IsDead) return;
-        _networkCurrentHealth.Value = 0f;
+        if (!IsServer) return;
+        if (IsDead) return;
+        NetworkHealth.Value = 0f;
+        HandleDeath();
     }
 
     /// <summary>Khôi phục HP tối đa. Gọi bởi RespawnManager sau hồi sinh.</summary>
@@ -87,23 +90,51 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
     {
         if (IsServer)
         {
-            _networkCurrentHealth.Value = MaxHealth;
+            NetworkHealth.Value = MaxHealth;
         }
+        else if (IsOwner)
+        {
+            RestoreFullHealthServerRpc();
+        }
+    }
+
+    [ServerRpc]
+    private void RestoreFullHealthServerRpc()
+    {
+        NetworkHealth.Value = MaxHealth;
+        Debug.Log($"[PlayerHealth] Server restored health for Player {OwnerClientId} via ServerRpc");
     }
 
     private void HandleDeath()
     {
-        // Chuyển state máy trạng thái
+        if (!IsServer) return;
+
+        ulong clientId = OwnerClientId;
+        
+        // Thông báo cho tất cả các client về cái chết này qua mạng
+        NotifyPlayerDiedClientRpc(clientId);
+
+#if UNITY_EDITOR || DEBUG_BUILD
+        Debug.Log($"[PlayerHealth] Server detected Player {clientId} died.");
+#endif
+    }
+
+    /// <summary>
+    /// Gửi thông báo từ Server xuống tất cả các Client.
+    /// Giúp EventBus.OnPlayerDied được kích hoạt đồng bộ trên mọi máy.
+    /// </summary>
+    [ClientRpc]
+    private void NotifyPlayerDiedClientRpc(ulong clientId)
+    {
+        // Chuyển state máy cục bộ (nếu là owner thì quan trọng nhất)
         if (_fsm != null)
         {
             _fsm.TransitionTo(PlayerStateType.Dead);
         }
 
-        // Thông báo hệ thống (Dùng OwnerClientId để xác định player nào chết)
-        EventBus.RaisePlayerDied(OwnerClientId);
-
-#if UNITY_EDITOR || DEBUG_BUILD
-        Debug.Log($"[PlayerHealth] Player {OwnerClientId} died.");
-#endif
+        // Kích hoạt EventBus local trên máy này
+        EventBus.RaisePlayerDied(clientId);
+        
+        Debug.Log($"[PlayerHealth] Client {NetworkManager.Singleton.LocalClientId} received death notification for Player {clientId}");
     }
 }
