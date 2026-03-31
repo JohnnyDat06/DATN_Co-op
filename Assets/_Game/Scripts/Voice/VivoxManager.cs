@@ -15,10 +15,10 @@ public class VivoxManager : MonoBehaviour
     [SerializeField] private bool _autoLogin = true;
 
     [Header("3D Audio Settings")]
-    [Range(1, 200)]
-    [SerializeField] private int _audibleDistance = 64;
-    [Range(1, 50)]
-    [SerializeField] private int _conversationalDistance = 5;
+    [Range(1, 500)]
+    [SerializeField] private int _audibleDistance = 100;
+    [Range(1, 100)]
+    [SerializeField] private int _conversationalDistance = 10;
     [Range(0.1f, 4.0f)]
     [SerializeField] private float _rolloff = 1.0f;
     [SerializeField] private AudioFadeModel _distanceModel =
@@ -29,8 +29,8 @@ public class VivoxManager : MonoBehaviour
     [SerializeField] private int _masterVolume = 0;
     [Range(-50, 50)]
     [SerializeField] private int _micGain = 0;
-    [Range(0.001f, 0.1f)]
-    [SerializeField] private float _vadThreshold = 0.005f;
+    [Range(0.0001f, 0.1f)]
+    [SerializeField] private float _vadThreshold = 0.001f;
 
     public int MasterVolume => _masterVolume;
     public int MicGain => _micGain;

@@ -123,8 +123,8 @@ public class VivoxVoiceHandler : NetworkBehaviour
                         channelToJoin = VivoxManager.Instance.DefaultChannelName;
                     }
 
-                    Debug.Log($"[VivoxVoiceHandler] Attempting to join channel: {channelToJoin}");
-                    await VivoxManager.Instance.JoinChannelAsync(channelToJoin, true);
+                    Debug.Log($"[VivoxVoiceHandler] Attempting to join channel: {channelToJoin} (3D Positional)");
+                    await VivoxManager.Instance.JoinChannelAsync(channelToJoin, true); // Bật lại 3D Positional
                     
                     if (!string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName))
                     {
@@ -156,9 +156,11 @@ public class VivoxVoiceHandler : NetworkBehaviour
     {
         if (!IsSpawned) return;
 
+        // Cập nhật vị trí 3D cho chính mình (Speaker) và tai nghe (Listener)
+        UpdatePositions();
+
         if (IsOwner)
         {
-            UpdatePositions();
             HandleOcclusion();
         }
     }
@@ -168,21 +170,43 @@ public class VivoxVoiceHandler : NetworkBehaviour
         if (VivoxManager.Instance == null || string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName)) return;
         if (!VivoxManager.Instance.IsLoggedIn) return;
 
-        // Vị trí của người nghe (Listener) luôn là Camera hoặc chính mình
-        Transform listenerTransform = Camera.main != null ? Camera.main.transform : transform;
-        
-        try 
+        // Cập nhật vị trí miệng người nói (Speaker) - CẦN CHẠY TRÊN CẢ OWNER VÀ PROXY
+        // Để Vivox biết nhân vật này đang đứng ở đâu trong không gian 3D
+        Vector3 speakerPos = transform.position + Vector3.up * 1.5f;
+
+        // Cập nhật vị trí tai người nghe (Listener) - CHỈ CHẠY TRÊN OWNER (Người đang ngồi trước máy)
+        if (IsOwner)
         {
-            // Set3DPosition cho local player: cập nhật cả vị trí nói (speaker) và vị trí nghe (listener)
-            VivoxService.Instance.Set3DPosition(
-                transform.position,             // Vị trí miệng người nói
-                listenerTransform.position,      // Vị trí tai người nghe
-                listenerTransform.forward,       // Hướng nhìn
-                listenerTransform.up,            // Hướng lên
-                VivoxManager.Instance.JoinedChannelName
-            );
+            Transform listenerTransform = Camera.main != null ? Camera.main.transform : transform;
+            
+            try 
+            {
+                VivoxService.Instance.Set3DPosition(
+                    speakerPos,                      // Vị trí người nói
+                    listenerTransform.position,      // Vị trí người nghe
+                    listenerTransform.forward,       // Hướng nhìn
+                    listenerTransform.up,            // Hướng lên
+                    VivoxManager.Instance.JoinedChannelName
+                );
+            }
+            catch (System.Exception) { }
         }
-        catch (System.Exception) { }
+        else
+        {
+            // Nếu là Proxy, chúng ta vẫn cần báo cho Vivox biết vị trí của "hình bóng" này
+            // Nhưng không cập nhật vị trí tai nghe (Listener) vì tai nghe thuộc về Owner máy này
+            try
+            {
+                // Gọi với tham số listener giống speaker để Vivox hiểu đây chỉ là cập nhật vị trí nguồn phát
+                VivoxService.Instance.Set3DPosition(
+                    speakerPos, 
+                    speakerPos, 
+                    transform.forward, 
+                    transform.up, 
+                    VivoxManager.Instance.JoinedChannelName);
+            }
+            catch (System.Exception) { }
+        }
     }
 
     private void HandleOcclusion()
@@ -202,59 +226,18 @@ public class VivoxVoiceHandler : NetworkBehaviour
             VivoxVoiceHandler remoteHandler = null;
             string participantId = participant.PlayerId;
 
-            // Log để debug ID (chỉ log khi có sự thay đổi hoặc theo chu kỳ dài để tránh spam)
-            // Debug.Log($"[VivoxVoiceHandler] Checking participant: {participantId}");
-
             foreach (var kvp in _allHandlers)
             {
-                // Logic so khớp ID cải tiến:
-                // Vivox ID thường có format "f:envId:playerId"
-                // kvp.Key là "playerId" thuần túy từ AuthenticationService
-                if (participantId.EndsWith(kvp.Key) || participantId.Contains(kvp.Key))
+                if (participantId.Contains(kvp.Key))
                 {
                     remoteHandler = kvp.Value;
                     break;
                 }
             }
 
-            float occlusionVolume = 1.0f;
-            if (remoteHandler != null)
-            {
-                Vector3 startPos = transform.position + Vector3.up * 1.5f;
-                Vector3 endPos = remoteHandler.transform.position + Vector3.up * 1.5f;
-                Vector3 direction = endPos - startPos;
-                float distance = direction.magnitude;
-
-                // Kiểm tra vật cản giữa 2 player
-                if (Physics.Raycast(startPos, direction.normalized, out RaycastHit hit, distance, _occlusionLayerMask))
-                {
-                    // Nếu trúng vật gì đó không phải là chính player đó
-                    if (hit.collider.transform != remoteHandler.transform && !hit.collider.transform.IsChildOf(remoteHandler.transform))
-                    {
-                        occlusionVolume = _occludedVolumeReduction; 
-                    }
-                }
-            }
-            else
-            {
-                // Nếu không tìm thấy handler cho participant này, có thể do chưa đồng bộ xong ID
-                // Chúng ta vẫn cho nghe nhưng có thể giới hạn volume nhẹ
-                // Debug.LogWarning($"[VivoxVoiceHandler] No handler found for participant: {participantId}");
-            }
-
-            // Áp dụng volume (Vivox volume từ -50 đến 50)
-            int targetVolume = (occlusionVolume < 1.0f) ? -15 : 0; 
-            
-            // Chỉ áp dụng volume nếu participant đang thực sự nói (AudioEnergy > 0)
-            if (participant.AudioEnergy > 1e-5) 
-            {
-                participant.SetLocalVolume(targetVolume);
-            }
-            else
-            {
-                // Giảm nhiễu nền khi không nói
-                participant.SetLocalVolume(-50);
-            }
+            // Nếu tìm thấy handler, âm thanh 3D sẽ tự hoạt động dựa trên Set3DPosition
+            // Nếu không tìm thấy (do lag đồng bộ ID), ta vẫn để volume 0 để nghe được dạng 2D tạm thời
+            participant.SetLocalVolume(0);
         }
     }
 }
