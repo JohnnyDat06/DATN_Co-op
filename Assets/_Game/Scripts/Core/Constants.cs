@@ -51,16 +51,18 @@ public static class Constants
     /// <summary>GameObject Tags trong Unity.</summary>
     public static class Tags
     {
-        public const string PLAYER     = "Player";
-        public const string CHECKPOINT = "Checkpoint";
-        public const string DEATH_ZONE = "DeathZone";
+        public const string PLAYER       = "Player";
+        public const string CHECKPOINT   = "Checkpoint";
+        public const string DEATH_ZONE   = "DeathZone";
+        public const string INTERACTABLE = "Interactable";
     }
 
     /// <summary>Layer names trong Unity.</summary>
     public static class Layers
     {
-        public const string ENVIRONMENT = "Environment";
-        public const string PLAYER      = "Player";
+        public const string ENVIRONMENT  = "Environment";
+        public const string PLAYER       = "Player";
+        public const string INTERACTABLE = "Interactable";
     }
 
     /// <summary>Các hằng số gameplay.</summary>
