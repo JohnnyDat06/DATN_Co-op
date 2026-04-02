@@ -87,6 +87,7 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
         // Đợi một chút để đảm bảo NetworkId và Ownership đã ổn định
         await System.Threading.Tasks.Task.Delay(1000);
+        if (this == null || !IsSpawned) return;
 
         int retries = 0;
         while (retries < 10) // Tăng số lần thử lại
@@ -117,10 +118,15 @@ public class VivoxVoiceHandler : NetworkBehaviour
                     
                     if (string.IsNullOrEmpty(channelToJoin) || channelToJoin == "MainLobby")
                     {
-                        // Nếu vẫn là mặc định, đợi thêm chút nữa (có thể Relay chưa kịp set JoinCode)
-                        Debug.Log("[VivoxVoiceHandler] Channel name is still default/empty, waiting for Relay JoinCode...");
-                        await System.Threading.Tasks.Task.Delay(2000);
-                        channelToJoin = VivoxManager.Instance.DefaultChannelName;
+                        int waitLoops = 0;
+                        while ((string.IsNullOrEmpty(channelToJoin) || channelToJoin == "MainLobby") && waitLoops < 6)
+                        {
+                            Debug.Log($"[VivoxVoiceHandler] Channel name is still default/empty, waiting for Relay JoinCode ({waitLoops + 1}/6)...");
+                            await System.Threading.Tasks.Task.Delay(1000);
+                            if (this == null || !IsSpawned) return;
+                            channelToJoin = VivoxManager.Instance.DefaultChannelName;
+                            waitLoops++;
+                        }
                     }
 
                     Debug.Log($"[VivoxVoiceHandler] Attempting to join channel: {channelToJoin} (3D Positional)");
@@ -144,6 +150,7 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
             retries++;
             await System.Threading.Tasks.Task.Delay(3000); // Tăng thời gian delay giữa các lần retry
+            if (this == null || !IsSpawned) return;
         }
 
         if (!VivoxManager.Instance.IsLoggedIn)
@@ -167,46 +174,29 @@ public class VivoxVoiceHandler : NetworkBehaviour
 
     private void UpdatePositions()
     {
+        // CHỈ CHẠY TRÊN OWNER (Người đang ngồi trước máy)
+        // Set3DPosition cập nhật vị trí của BẢN THÂN trong không gian 3D của Vivox
+        // Nếu chạy trên Proxy nó sẽ liên tục đưa vị trí mic của bản thân tới vị trí của người khác!
+        if (!IsOwner) return;
+
         if (VivoxManager.Instance == null || string.IsNullOrEmpty(VivoxManager.Instance.JoinedChannelName)) return;
         if (!VivoxManager.Instance.IsLoggedIn) return;
 
-        // Cập nhật vị trí miệng người nói (Speaker) - CẦN CHẠY TRÊN CẢ OWNER VÀ PROXY
-        // Để Vivox biết nhân vật này đang đứng ở đâu trong không gian 3D
         Vector3 speakerPos = transform.position + Vector3.up * 1.5f;
 
-        // Cập nhật vị trí tai người nghe (Listener) - CHỈ CHẠY TRÊN OWNER (Người đang ngồi trước máy)
-        if (IsOwner)
+        Transform listenerTransform = Camera.main != null ? Camera.main.transform : transform;
+        
+        try 
         {
-            Transform listenerTransform = Camera.main != null ? Camera.main.transform : transform;
-            
-            try 
-            {
-                VivoxService.Instance.Set3DPosition(
-                    speakerPos,                      // Vị trí người nói
-                    listenerTransform.position,      // Vị trí người nghe
-                    listenerTransform.forward,       // Hướng nhìn
-                    listenerTransform.up,            // Hướng lên
-                    VivoxManager.Instance.JoinedChannelName
-                );
-            }
-            catch (System.Exception) { }
+            VivoxService.Instance.Set3DPosition(
+                speakerPos,                      // Vị trí người nói (miệng của avatar bản thân)
+                listenerTransform.position,      // Vị trí người nghe (camera)
+                listenerTransform.forward,       // Hướng nhìn
+                listenerTransform.up,            // Hướng lên
+                VivoxManager.Instance.JoinedChannelName
+            );
         }
-        else
-        {
-            // Nếu là Proxy, chúng ta vẫn cần báo cho Vivox biết vị trí của "hình bóng" này
-            // Nhưng không cập nhật vị trí tai nghe (Listener) vì tai nghe thuộc về Owner máy này
-            try
-            {
-                // Gọi với tham số listener giống speaker để Vivox hiểu đây chỉ là cập nhật vị trí nguồn phát
-                VivoxService.Instance.Set3DPosition(
-                    speakerPos, 
-                    speakerPos, 
-                    transform.forward, 
-                    transform.up, 
-                    VivoxManager.Instance.JoinedChannelName);
-            }
-            catch (System.Exception) { }
-        }
+        catch (System.Exception) { }
     }
 
     private void HandleOcclusion()
@@ -235,9 +225,35 @@ public class VivoxVoiceHandler : NetworkBehaviour
                 }
             }
 
-            // Nếu tìm thấy handler, âm thanh 3D sẽ tự hoạt động dựa trên Set3DPosition
-            // Nếu không tìm thấy (do lag đồng bộ ID), ta vẫn để volume 0 để nghe được dạng 2D tạm thời
-            participant.SetLocalVolume(0);
+            if (remoteHandler != null)
+            {
+                // Thực hiện Raycast kiểm tra vật cản
+                Transform listenerTransform = Camera.main != null ? Camera.main.transform : transform;
+                Vector3 listenerPos = listenerTransform.position;
+                Vector3 speakerPos = remoteHandler.transform.position + Vector3.up * 1.5f;
+
+                Vector3 direction = speakerPos - listenerPos;
+                float distance = direction.magnitude;
+
+                bool isOccluded = Physics.Raycast(listenerPos, direction.normalized, distance, _occlusionLayerMask);
+
+                if (isOccluded)
+                {
+                    // Vivox local volume: -50 đến 50. -50 = tắt hẳn, 0 = bình thường.
+                    int occlusionVol = Mathf.RoundToInt(-50f * _occludedVolumeReduction);
+                    participant.SetLocalVolume(occlusionVol);
+                }
+                else
+                {
+                    // Trả về mức âm thanh bình thường
+                    participant.SetLocalVolume(0);
+                }
+            }
+            else
+            {
+                // Nếu không tìm thấy handler (delay đồng bộ), để bình thường
+                participant.SetLocalVolume(0);
+            }
         }
     }
 }
