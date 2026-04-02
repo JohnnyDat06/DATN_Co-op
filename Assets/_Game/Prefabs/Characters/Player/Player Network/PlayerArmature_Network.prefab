@@ -2034,6 +2034,7 @@ GameObject:
   - component: {fileID: -2137367302137354340}
   - component: {fileID: -3215128257848520231}
   - component: {fileID: 1424979171794507662}
+  - component: {fileID: 8455207885305445847}
   m_Layer: 8
   m_Name: PlayerArmature_Network
   m_TagString: Player
@@ -2411,6 +2412,25 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &8455207885305445847
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7560633088603330182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 374baa92886baa54b8f02d2ad9d4f280, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  interactionDistance: 2
+  detectionRadius: 1
+  interactableLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  useSphereCast: 1
 --- !u!1 &7678487049339515666
 GameObject:
   m_ObjectHideFlags: 0
