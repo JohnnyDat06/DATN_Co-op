@@ -558,6 +558,28 @@ public class PlayerController : NetworkBehaviour
 
     // ─── Public Helpers ──────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Hất người chơi lên cao với một lực nhất định (Impulse).
+    /// Dùng cho các vật thể môi trường như Nấm bật.
+    /// </summary>
+    public void Bounce(float force)
+    {
+        if (!IsOwner) return;
+
+        // Reset vận tốc Y để lực bật luôn nhất quán
+        _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        _rb.AddForce(Vector3.up * force, ForceMode.Impulse);
+
+        // Đảm bảo thoát khỏi Grounded ngay lập tức
+        _isGrounded = false;
+        
+        // Chuyển sang trạng thái Jump để có thể điều hướng trên không
+        _fsm.TransitionTo(PlayerStateType.Jump);
+        
+        // Cho phép Double Jump sau khi nảy từ nấm
+        _jumpCount = 1; 
+    }
+
     /// <summary>Expose IsGrounded cho các class khác (ví dụ PlayerAnimator).</summary>
     public bool IsGrounded => _isGrounded;
 }
