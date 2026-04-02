@@ -17,10 +17,11 @@ namespace Game.Parkour
         [SerializeField] private MMF_Player _feedback;
 
         private float _lastBounceTime;
+        private float _serverLastBounceTime;
 
         private void OnTriggerEnter(Collider other)
         {
-            // Kiểm tra cooldown
+            // Kiểm tra cooldown (Local prediction)
             if (Time.time < _lastBounceTime + _config.CooldownTime) return;
 
             // Kiểm tra xem có phải Player không thông qua PlayerController
@@ -41,6 +42,10 @@ namespace Game.Parkour
         [ServerRpc(RequireOwnership = false)]
         private void PlayBounceVisualServerRpc()
         {
+            // Kiểm tra cooldown thực tế trên Server
+            if (Time.time < _serverLastBounceTime + _config.CooldownTime) return;
+            _serverLastBounceTime = Time.time;
+
             // Server ra lệnh cho toàn bộ Client phát hiệu ứng
             PlayBounceVisualClientRpc();
         }
@@ -48,6 +53,9 @@ namespace Game.Parkour
         [ClientRpc]
         private void PlayBounceVisualClientRpc()
         {
+            // Cập nhật cooldown local trên mọi Client để đồng bộ visual
+            _lastBounceTime = Time.time;
+
             // Phát Feel Feedbacks (Scale, Sound, v.v.)
             if (_feedback != null)
             {

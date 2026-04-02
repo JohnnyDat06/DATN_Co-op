@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e61ad5b29d6e7f242928dcb70d1700f6, type: 3}
   m_Name: SOMushroomConfig
   m_EditorClassIdentifier: 
-  BounceForce: 15
+  BounceForce: 20
   CooldownTime: 0.3
   AnimationTrigger: Bounce
   VFXPrefab: {fileID: 0}
