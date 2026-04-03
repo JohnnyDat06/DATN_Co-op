@@ -425,13 +425,21 @@ MonoBehaviour:
   m_GameObject: {fileID: 38692564}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eb85baaabbde85646a80b7e2fefcbbd5, type: 3}
+  m_Script: {fileID: 11500000, guid: 430ba4f48f6093241ba84a28bbb88865, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  interactionPrompt: Interact
-  canInteract: 1
-  showOutlineOnHover: 1
+  _interactionPrompt: Interact
+  _interactableId: interactable_001
+  _canInteract: 1
+  _allowReactivation: 0
+  _showOutlineOnHover: 1
+  _maxInteractDistance: 3
+  OnActivated:
+    m_PersistentCalls:
+      m_Calls: []
+  _promptUIPrefab: {fileID: 2607592932579618821, guid: e11b9df29050d0444a29cad2844a0915, type: 3}
+  _promptUIOffset: {x: 0, y: 1.5, z: 0}
   onInteracted:
     m_PersistentCalls:
       m_Calls:

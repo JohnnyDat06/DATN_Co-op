@@ -130,11 +130,14 @@ MonoBehaviour:
   _vcamSandSlide: {fileID: 4514573912025935249}
   _vcamPlatformer: {fileID: 2465960269005723683}
   _vcamFlyDown: {fileID: 7617897933509152174}
+  _vcamTopDownController: {fileID: 0}
+  _vcamTopDownObserver: {fileID: 0}
   _configThirdPerson: {fileID: 11400000, guid: 790a842267c511a4f85adb1090aa03cd, type: 2}
   _configSandSlide: {fileID: 11400000, guid: 44667aaa83b83cc4bb85dadc299bbd23, type: 2}
   _configPlatformer: {fileID: 11400000, guid: 5586bfb9fdf2a4541ab9c3840e9c7ded, type: 2}
   _configFlyDown: {fileID: 11400000, guid: dfce47a34ccb90b46b2d1a196536ad3b, type: 2}
   _configCutscene: {fileID: 11400000, guid: 0ceffa9ba732a954192317726a9032db, type: 2}
+  _configTopDown: {fileID: 0}
 --- !u!114 &2909863037195422926
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -362,7 +365,7 @@ MonoBehaviour:
   VerticalAxis:
     Value: 17.5
     Center: 17.5
-    Range: {x: -10, y: 95}
+    Range: {x: -10, y: 80}
     Wrap: 0
     Recentering:
       Enabled: 0

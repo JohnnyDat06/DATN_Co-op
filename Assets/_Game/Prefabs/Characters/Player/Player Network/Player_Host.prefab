@@ -5059,7 +5059,6 @@ GameObject:
   - component: {fileID: -7321306293466953923}
   - component: {fileID: 4393955296312547137}
   - component: {fileID: 5979990605293939981}
-  - component: {fileID: 122396364206124665}
   - component: {fileID: 4810457772248123075}
   m_Layer: 3
   m_Name: Player_Host
@@ -5563,7 +5562,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _attackHitbox: {fileID: 7235842231928995339}
   _comboController: {fileID: 4393955296312547137}
---- !u!114 &122396364206124665
 --- !u!114 &4810457772248123075
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5577,20 +5575,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  _interactRadius: 2.5
+  _interactRadius: 1.5
   _interactableLayerMask:
     serializedVersion: 2
     m_Bits: 512
-  m_Script: {fileID: 11500000, guid: 374baa92886baa54b8f02d2ad9d4f280, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowTopMostFoldoutHeaderGroup: 1
-  interactionDistance: 2
-  detectionRadius: 1
-  interactableLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  useSphereCast: 1
 --- !u!1 &6346669034698438194
 GameObject:
   m_ObjectHideFlags: 0

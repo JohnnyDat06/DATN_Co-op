@@ -1,81 +1,122 @@
+using System;
 using Unity.Netcode;
 using UnityEngine;
 
-/// <summary>
-/// PlayerInteractor — Component gắn vào Player để phát hiện và gọi Interactable gần nhất.
-/// Tách biệt hoàn toàn khỏi PlayerStateMachine (Decoupled).
-/// Chỉ active trên IsOwner — không ảnh hưởng proxy.
-/// SRS §4.2.1
-/// </summary>
 [RequireComponent(typeof(PlayerInputHandler))]
 public class PlayerInteractor : NetworkBehaviour
 {
-    // ─── Inspector Fields ─────────────────────────────────────────────────────
-
     [Header("Detection")]
-    [Tooltip("Bán kính phát hiện Interactable xung quanh Player (mét).")]
+    [Tooltip("Khoang cach raycast toi da tu tam camera toi vat the tuong tac.")]
     [SerializeField] private float _interactRadius = 2f;
 
-    [Tooltip("Layer mask của các vật thể Interactable.")]
+    [Tooltip("Layer mask cua cac vat the Interactable.")]
     [SerializeField] private LayerMask _interactableLayerMask;
 
-    // ─── Runtime ─────────────────────────────────────────────────────────────
+    public static Action<IInteractable> OnInteractableFound;
+    public static Action OnInteractableLost;
 
     private PlayerInputHandler _input;
-    private IInteractable      _currentTarget;
-
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
+    private Camera _mainCamera;
+    private IInteractable _currentTarget;
 
     private void Awake()
     {
         _input = GetComponent<PlayerInputHandler>();
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        if (!IsOwner)
+        {
+            enabled = false;
+            return;
+        }
+
+        _mainCamera = Camera.main;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+        SetCurrentTarget(null);
+    }
+
     private void Update()
     {
         if (!IsSpawned || !IsOwner) return;
 
-        // Tìm Interactable gần nhất liên tục mỗi frame
-        DetectNearestInteractable();
+        if (_mainCamera == null)
+        {
+            _mainCamera = Camera.main;
+            if (_mainCamera == null) return;
+        }
 
-        // Khi Player bấm Interact và đã có target trong range
-        if (_input.InteractPressed && _currentTarget != null)
+        DetectLookTarget();
+
+        if (_input.InteractPressed && _currentTarget != null && _currentTarget.CanInteract)
         {
             _currentTarget.Interact(OwnerClientId);
         }
     }
 
-    // ─── Detection ────────────────────────────────────────────────────────────
-
-    private void DetectNearestInteractable()
+    private void DetectLookTarget()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, _interactRadius, _interactableLayerMask);
-
-        IInteractable nearest      = null;
-        float         nearestDist  = float.MaxValue;
-
-        foreach (var hit in hits)
+        Ray ray = _mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        IInteractable nextTarget = null;
+        
+        float finaledDistanceInteract = 5 + _interactRadius;
+        
+        if (Physics.Raycast(ray, out RaycastHit hit, finaledDistanceInteract, _interactableLayerMask, QueryTriggerInteraction.Collide))
         {
-            var interactable = hit.GetComponentInParent<IInteractable>();
-            if (interactable == null) continue;
-            if (interactable.IsActivated) continue; // Bỏ qua đã kích hoạt rồi (one-shot)
-
-            float dist = Vector3.Distance(transform.position, hit.transform.position);
-            if (dist < nearestDist)
+            nextTarget = hit.collider.GetComponentInParent<IInteractable>();
+            if (nextTarget != null && !nextTarget.CanInteract)
             {
-                nearestDist = dist;
-                nearest     = interactable;
+                nextTarget = null;
             }
         }
 
-        _currentTarget = nearest;
+        SetCurrentTarget(nextTarget);
     }
 
-    // ─── Gizmos ──────────────────────────────────────────────────────────────
+    private void SetCurrentTarget(IInteractable nextTarget)
+    {
+        if (ReferenceEquals(_currentTarget, nextTarget)) return;
+
+        if (_currentTarget != null)
+        {
+            _currentTarget.OnHoverExit();
+            OnInteractableLost?.Invoke();
+        }
+
+        _currentTarget = nextTarget;
+
+        if (_currentTarget != null)
+        {
+            _currentTarget.OnHoverEnter();
+            OnInteractableFound?.Invoke(_currentTarget);
+        }
+    }
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, _interactRadius);
+        Camera gizmoCamera = _mainCamera != null ? _mainCamera : Camera.main;
+        Ray ray;
+
+        if (gizmoCamera != null)
+        {
+            ray = gizmoCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        }
+        else
+        {
+            Vector3 origin = transform.position + Vector3.up * 1.6f;
+            ray = new Ray(origin, transform.forward);
+        }
+        float finaledDistanceInteract = 5 + _interactRadius;
+
+        Gizmos.DrawRay(ray.origin, ray.direction * finaledDistanceInteract);
+        Gizmos.DrawWireSphere(ray.origin + ray.direction * finaledDistanceInteract, 0.08f);
     }
 }

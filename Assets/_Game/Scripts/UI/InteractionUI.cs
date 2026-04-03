@@ -1,6 +1,5 @@
-using UnityEngine;
 using TMPro;
-using Game.Interactions;
+using UnityEngine;
 
 namespace Game.UI
 {
@@ -11,15 +10,19 @@ namespace Game.UI
 
         private void OnEnable()
         {
-            PlayerInteraction.OnInteractableFound += Show;
-            PlayerInteraction.OnInteractableLost += Hide;
-            visualRoot.SetActive(false);
+            PlayerInteractor.OnInteractableFound += Show;
+            PlayerInteractor.OnInteractableLost += Hide;
+
+            if (visualRoot != null)
+            {
+                visualRoot.SetActive(false);
+            }
         }
 
         private void OnDisable()
         {
-            PlayerInteraction.OnInteractableFound -= Show;
-            PlayerInteraction.OnInteractableLost -= Hide;
+            PlayerInteractor.OnInteractableFound -= Show;
+            PlayerInteractor.OnInteractableLost -= Hide;
         }
 
         private void Show(IInteractable interactable)
@@ -28,12 +31,19 @@ namespace Game.UI
             {
                 promptText.text = interactable.InteractionPrompt;
             }
-            visualRoot.SetActive(true);
+
+            if (visualRoot != null)
+            {
+                visualRoot.SetActive(true);
+            }
         }
 
         private void Hide()
         {
-            visualRoot.SetActive(false);
+            if (visualRoot != null)
+            {
+                visualRoot.SetActive(false);
+            }
         }
     }
 }
