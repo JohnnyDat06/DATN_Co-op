@@ -44,14 +44,12 @@ public class AttackHitbox : MonoBehaviour
     {
         _isActive = true;
         _hitTargets.Clear();
-        Debug.Log("EnableHitbox");
     }
 
     /// <summary>Gọi từ Animation Event khi kết thúc active frame.</summary>
     public void DisableHitbox()
     {
         _isActive = false;
-        Debug.Log("DisableHitbox");
     }
 
     // ─── Detect ────────────────────────────────────────────────
