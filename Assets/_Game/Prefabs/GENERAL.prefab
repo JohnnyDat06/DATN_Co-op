@@ -528,7 +528,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 642179201388142258, guid: c5f141f8dd294564faa41a06e0d4ff29, type: 3}
       propertyPath: GlobalObjectIdHash
-      value: 4094169383
+      value: 2774839706
       objectReference: {fileID: 0}
     - target: {fileID: 3460051315115231480, guid: c5f141f8dd294564faa41a06e0d4ff29, type: 3}
       propertyPath: m_Name
@@ -582,7 +582,8 @@ PrefabInstance:
       propertyPath: _joinCodeDisplay
       value: 
       objectReference: {fileID: 1614766592615233715}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 8008604335236681531, guid: c5f141f8dd294564faa41a06e0d4ff29, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
