@@ -62,6 +62,7 @@ public class PlayerStateMachine : NetworkBehaviour
             { PlayerStateType.Attack1,      new Attack1State(this, _inputHandler) },
             { PlayerStateType.Attack2,      new Attack2State(this, _inputHandler) },
             { PlayerStateType.Attack3,      new Attack3State(this, _inputHandler) },
+            { PlayerStateType.Knockback,    new JumpState(this, _inputHandler) },
         };
     }
 

@@ -39,6 +39,7 @@ public class PlayerAnimator : MonoBehaviour
     private static readonly int ATTACK2_TRIGGER      = Animator.StringToHash("Attack2Trigger");
     private static readonly int ATTACK3_TRIGGER      = Animator.StringToHash("Attack3Trigger");
     private static readonly int ATTACK_COUNT         = Animator.StringToHash("AttackCount");
+    private static readonly int HURT_TRIGGER         = Animator.StringToHash("Hurt");
 
     private void Awake()
     {
@@ -156,6 +157,10 @@ public class PlayerAnimator : MonoBehaviour
                 case PlayerStateType.Attack3:
                     _animator.SetTrigger(ATTACK3_TRIGGER);
                     _animator.SetInteger(ATTACK_COUNT, 3);
+                    break;
+
+                case PlayerStateType.Knockback:
+                    _animator.SetTrigger(HURT_TRIGGER);
                     break;
 
                 case PlayerStateType.Idle:
