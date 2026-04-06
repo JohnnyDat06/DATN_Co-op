@@ -73,32 +73,35 @@ public class CoopInteractable : InteractableBase
         if (!IsServer) return;
         if (IsActivated && !_allowReactivation) return;
 
-        RefreshReadinessState();
-    }
-
-    private void RefreshReadinessState()
-    {
-        bool hostReady = EvaluateReadyState(NetworkManager.ServerClientId, true);
-        bool clientReady = EvaluateReadyState(1, false);
-
-        if (_playerAReady.Value != hostReady)
+        // THAY ĐỔI CỐT LÕI: Update CHỈ ĐƯỢC PHÉP dùng để HỦY (Tắt) trạng thái ready 
+        // nếu người chơi bỏ đi rông quá xa Point A / Point B. 
+        // Tuyệt đối KHÔNG được tự động Bật (gán True) ở đây, Bật (True) chỉ được làm khi bấm [E].
+        if (_playerAReady.Value)
         {
-            _playerAReady.Value = hostReady;
+            if (!IsPlayerNear(NetworkManager.ServerClientId, true))
+            {
+                _playerAReady.Value = false;
+                Debug.Log($"[CoopInteractable] {_interactableId} - Host roi khoi vi tri -> Huy San Sang.");
+            }
         }
 
-        if (_playerBReady.Value != clientReady)
+        if (_playerBReady.Value)
         {
-            _playerBReady.Value = clientReady;
+            if (!IsPlayerNear(1, false)) // ID = 1 tam thoi cho p2
+            {
+                _playerBReady.Value = false;
+                Debug.Log($"[CoopInteractable] {_interactableId} - Client roi khoi vi tri -> Huy San Sang.");
+            }
         }
     }
 
-    private bool EvaluateReadyState(ulong playerId, bool isHost)
+    private bool IsPlayerNear(ulong playerId, bool isHost)
     {
         if (!TryGetPlayerObject(playerId, out NetworkObject playerObject)) return false;
-        if (!CanPlayerInteract(playerId)) return false;
 
         Vector3 playerPos = playerObject.transform.position;
         Transform targetPoint = isHost ? _pointA : _pointB;
+        
         return targetPoint == null || Vector3.Distance(playerPos, targetPoint.position) <= _validDistance;
     }
 

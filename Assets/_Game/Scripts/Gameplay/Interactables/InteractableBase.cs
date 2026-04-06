@@ -14,16 +14,14 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
     [SerializeField] protected float _maxInteractDistance = 3f;
     public UnityEvent OnActivated;
 
-    [Header("Prompt UI")]
-    [SerializeField] private GameObject _promptUIPrefab;
-    [SerializeField] private Vector3 _promptUIOffset = new Vector3(0f, 1.5f, 0f);
+    // Prompt UI đã được chuyển hoàn toàn sang InteractPromptHUD trên Canvas HUD.
+    // InteractableBase không còn quản lý World Space UI nữa.
 
     protected readonly NetworkVariable<bool> _isActivated = new(
         false,
         NetworkVariableReadPermission.Everyone,
         NetworkVariableWritePermission.Server);
 
-    private GameObject _promptUIInstance;
     private Outline _outline;
     private Collider _cachedCollider;
 
@@ -53,30 +51,20 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
         base.OnNetworkDespawn();
         _isActivated.OnValueChanged -= OnActivatedValueChanged;
         OnHoverExit();
-        HidePromptUI();
     }
 
     public virtual void OnHoverEnter()
     {
         if (_showOutlineOnHover && _outline != null)
-        {
             _outline.enabled = true;
-        }
-
-        if (CanInteract)
-        {
-            ShowPromptUI();
-        }
+        // PromptUI được xử lý bởi InteractPromptHUD — không cần gọi gì thêm ở đây.
     }
 
     public virtual void OnHoverExit()
     {
         if (_outline != null)
-        {
             _outline.enabled = false;
-        }
-
-        HidePromptUI();
+        // PromptUI được ẩn bởi InteractPromptHUD khi OnInteractableLost fire.
     }
 
     public abstract void Interact(ulong playerId);
@@ -139,7 +127,7 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
         {
             if (!_allowReactivation)
             {
-                HidePromptUI();
+                //HidePromptUI();
             }
 
             OnActivated?.Invoke();
@@ -147,31 +135,8 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
         }
     }
 
-    protected void ShowPromptUI()
-    {
-        if (_promptUIInstance != null)
-        {
-            _promptUIInstance.SetActive(true);
-            return;
-        }
-
-        if (_promptUIPrefab == null) return;
-
-        _promptUIInstance = Instantiate(
-            _promptUIPrefab,
-            transform.position + _promptUIOffset,
-            Quaternion.identity,
-            transform);
-        _promptUIInstance.transform.localPosition = _promptUIOffset;
-    }
-
-    protected void HidePromptUI()
-    {
-        if (_promptUIInstance != null)
-        {
-            _promptUIInstance.SetActive(false);
-        }
-    }
+    // ShowPromptUI / HidePromptUI đã bị xóa.
+    // Toàn bộ Prompt UI giờ là trách nhiệm của InteractPromptHUD.
 
     public void SetInteractable(bool state)
     {
