@@ -19,6 +19,19 @@ public class SORockConfig : ScriptableObject
     [Tooltip("Tốc độ rơi tối đa")]
     public float SpeedMax = 14f;
 
+    [Header("Horizontal Shooting")]
+    [Tooltip("Tốc độ bay ngang")]
+    public float HorizontalSpeed = 20f;
+
+    [Tooltip("Lực đẩy lùi khi trúng player")]
+    public float KnockbackForce = 15f;
+
+    [Tooltip("Vật liệu cho mảnh vỡ (ví dụ màu đen)")]
+    public Material FragmentMaterial;
+
+    [Tooltip("Thời gian tồn tại của mảnh vỡ trước khi biến mất (giây)")]
+    public float FragmentLifetime = 3f;
+
     [Tooltip("Offset bóng shadow indicator so với vị trí đá")]
     public float ShadowOffset = 0.1f;
 

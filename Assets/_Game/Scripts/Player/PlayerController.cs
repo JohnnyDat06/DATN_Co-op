@@ -43,6 +43,9 @@ public class PlayerController : NetworkBehaviour
     private float   _rollStartSpeed;    // tốc độ ngang lúc bắt đầu roll (walk/run speed)
     private float   _rollBoostSpeed;    // tốc độ boost thêm từ config (đỉnh curve)
 
+    // Knockback state
+    private float   _knockbackTimer;
+
     // Capsule original values (để restore sau Crouch)
     private float   _originalCapsuleHeight;
     private Vector3 _originalCapsuleCenter;
@@ -83,6 +86,9 @@ public class PlayerController : NetworkBehaviour
 
         // Từ đoạn này trở xuống: Liên quan đến tác động vật lý (thay đổi vận tốc, ép lực), CHỈ OWNER được làm:
         if (!IsOwner) return;
+
+        // Update timers
+        if (_knockbackTimer > 0f) _knockbackTimer -= Time.fixedDeltaTime;
 
         // SAFETY NET: Đảm bảo không bao giờ bị kẹt mất trọng lực "bay trên trời" nếu lỡ ngắt state đột ngột
         if (_fsm.CurrentStateType != PlayerStateType.DashInAir && 
@@ -141,6 +147,9 @@ public class PlayerController : NetworkBehaviour
                                   or PlayerStateType.Attack1
                                   or PlayerStateType.Attack2
                                   or PlayerStateType.Attack3) return;
+
+        // Chặn di chuyển nếu đang bị knockback
+        if (_knockbackTimer > 0f) return;
 
         if (_input.MoveInput.sqrMagnitude < 0.01f)
         {
@@ -542,13 +551,17 @@ public class PlayerController : NetworkBehaviour
             _dashUsed   = false;
             _rb.useGravity = true;
 
-            // Reset về ground state nếu đang ở air state
+            // Reset về ground state nếu đang ở air state hoặc knockback
             if (_fsm.CurrentStateType is PlayerStateType.Jump
                 or PlayerStateType.DoubleJump
                 or PlayerStateType.AirGlide
                 or PlayerStateType.WallJump
-                or PlayerStateType.DashInAir)
+                or PlayerStateType.DashInAir
+                or PlayerStateType.Knockback)
             {
+                // Chỉ thoát knockback khi timer đã hết hoặc vận tốc đã giảm đáng kể
+                if (_fsm.CurrentStateType == PlayerStateType.Knockback && _knockbackTimer > 0f) return;
+
                 _fsm.TransitionTo(_input.IsMoving
                     ? (_input.IsSprinting ? PlayerStateType.Run : PlayerStateType.Walk)
                     : PlayerStateType.Idle);
@@ -582,4 +595,44 @@ public class PlayerController : NetworkBehaviour
 
     /// <summary>Expose IsGrounded cho các class khác (ví dụ PlayerAnimator).</summary>
     public bool IsGrounded => _isGrounded;
+
+    [ClientRpc]
+    public void ApplyKnockbackClientRpc(Vector3 force)
+    {
+        if (!IsOwner) return;
+
+        // Ép lại trọng tâm thẳng đứng phòng trường hợp bị va chạm vật lý làm nghiêng
+        _rb.freezeRotation = true;
+        _rb.angularVelocity = Vector3.zero;
+
+        // Reset vận tốc ngang để lực hất có tác động rõ rệt nhất
+        _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
+        
+        // Áp dụng lực hất (Impulse)
+        _rb.AddForce(force, ForceMode.Impulse);
+
+        // Chặn điều khiển di chuyển trong một khoảng thời gian ngắn (ví dụ 0.4s)
+        _knockbackTimer = 0.5f;
+
+        // Xoay mặt Player về phía hướng bay của đá (như thể bị đập vào mặt)
+        if (force.sqrMagnitude > 0.01f)
+        {
+            Vector3 lookDir = -force.normalized;
+            lookDir.y = 0;
+            if (lookDir.sqrMagnitude > 0.01f)
+            {
+                transform.rotation = Quaternion.LookRotation(lookDir);
+            }
+        }
+
+        // Chuyển sang trạng thái Knockback (nếu đã có state class) hoặc Jump để quản lý physics trên không
+        _fsm.TransitionTo(PlayerStateType.Knockback);
+
+        // Nếu đang ở dưới đất, hất nhẹ lên để giảm ma sát và trông tự nhiên hơn
+        if (_isGrounded)
+        {
+            _rb.AddForce(Vector3.up * 3f, ForceMode.Impulse);
+            _isGrounded = false;
+        }
+    }
 }

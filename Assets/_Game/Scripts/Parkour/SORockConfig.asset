@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5898fb58ebb849b4486f8a9cdef10819, type: 3}
+  m_Name: SORockConfig
+  m_EditorClassIdentifier: 
+  SpawnRate: 0.5
+  Damage: 25
+  SpeedMin: 8
+  SpeedMax: 14
+  HorizontalSpeed: 20
+  KnockbackForce: 30
+  FragmentMaterial: {fileID: 2100000, guid: abf70ed82fc2ebf4c9b510478b549045, type: 2}
+  FragmentLifetime: 1
+  ShadowOffset: 0.1
+  VFXImpactPrefab: {fileID: 5292157580998813610, guid: d1cc7d09f243bec4b82ee1f02eaadb4d, type: 3}
+  PoolSize: 20
