@@ -5578,7 +5578,7 @@ MonoBehaviour:
   _interactRadius: 1.5
   _interactableLayerMask:
     serializedVersion: 2
-    m_Bits: 512
+    m_Bits: 640
 --- !u!1 &6346669034698438194
 GameObject:
   m_ObjectHideFlags: 0
