@@ -25,6 +25,7 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
     private Outline _outline;
     private Collider _cachedCollider;
 
+    public string InteractableId => _interactableId;
     public string InteractionPrompt => _interactionPrompt;
     public bool CanInteract => _canInteract && (_allowReactivation || !_isActivated.Value);
     public bool IsActivated => _isActivated.Value;
