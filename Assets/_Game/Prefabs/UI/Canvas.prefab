@@ -4109,8 +4109,8 @@ MonoBehaviour:
   _promptPanel: {fileID: 6497040252377332129}
   _keyLabel: {fileID: 8745174368352291331}
   _actionLabel: {fileID: 5805118327616783286}
-  _worldOffset: {x: 0, y: 1.5, z: 0}
-  _screenOffset: {x: 0, y: 20}
+  _worldOffset: {x: 0, y: 0, z: 0}
+  _screenOffset: {x: 0, y: 0}
   _fontSizeSmall: 14
   _fontSizeNormal: 18
   _fontSizeLarge: 24
