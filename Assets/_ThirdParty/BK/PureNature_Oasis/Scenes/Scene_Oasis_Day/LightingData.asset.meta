@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 05e3fe3c1654466da39dd772a1794d24
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 112000000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Scenes/Scene_Oasis_Day/LightingData.asset
+  uploadId: 717879

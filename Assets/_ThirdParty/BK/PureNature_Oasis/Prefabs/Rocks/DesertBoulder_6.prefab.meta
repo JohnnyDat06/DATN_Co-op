@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: b2fcf2bfc95e4715ba44946810acd352
+labels:
+- Rock
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Prefabs/Rocks/DesertBoulder_6.prefab
+  uploadId: 717879
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 29e25cda85934a7fb3c398c9bf0bd44d
+labels:
+- Plant
+- Vegetation
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Prefabs/Plants/Reeds3.prefab
+  uploadId: 717879
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

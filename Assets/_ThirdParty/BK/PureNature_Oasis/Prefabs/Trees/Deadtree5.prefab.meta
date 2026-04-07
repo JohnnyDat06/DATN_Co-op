@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 68aabaa5b7e54613bf0f28ba1b1aa1b7
+labels:
+- Tree
+- Vegetation
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Prefabs/Trees/Deadtree5.prefab
+  uploadId: 717879
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

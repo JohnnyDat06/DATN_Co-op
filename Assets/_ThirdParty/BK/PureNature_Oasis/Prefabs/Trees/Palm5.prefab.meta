@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 3a0fa1f668cc4dda8700f9aa92024d13
+labels:
+- Tree
+- Vegetation
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Prefabs/Trees/Palm5.prefab
+  uploadId: 717879
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
