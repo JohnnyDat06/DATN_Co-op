@@ -122,6 +122,14 @@ public class CoopInteractable : InteractableBase
         }
     }
 
+    public override void ResetInteractable()
+    {
+        if (!IsServer) return;
+        base.ResetInteractable();
+        _playerAReady.Value = false;
+        _playerBReady.Value = false;
+    }
+
     private void OnPlayerAReadyChanged(bool previousValue, bool newValue)
     {
         HandleReadinessUI(NetworkManager.ServerClientId, previousValue, newValue);

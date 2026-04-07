@@ -15,18 +15,22 @@ namespace Gameplay.Objectives
         [SerializeField] private List<string> _requiredInteractableIds = new List<string>();
         [SerializeField] private bool _autoCompleteLevel = false;
         [SerializeField] private int _levelToComplete = 0;
+        [SerializeField] private bool _resetOnDeath = false;
 
         [Header("Events")]
         public UnityEvent OnObjectiveCompleted;
         public UnityEvent<int, int> OnProgressChanged; // Current, Total
 
         private NetworkList<FixedString32Bytes> _activatedIds;
+        private List<InteractableBase> _cachedInteractables = new List<InteractableBase>();
 
         private void Awake()
         {
             _activatedIds = new NetworkList<FixedString32Bytes>(
                 readPerm: NetworkVariableReadPermission.Everyone,
                 writePerm: NetworkVariableWritePermission.Server);
+            
+            CacheRequiredInteractables();
         }
 
         public override void OnNetworkSpawn()
@@ -34,6 +38,7 @@ namespace Gameplay.Objectives
             if (IsServer)
             {
                 EventBus.OnInteractableActivated += HandleInteractableActivated;
+                EventBus.OnPlayerDied += HandlePlayerDied;
             }
 
             _activatedIds.OnListChanged += HandleListChanged;
@@ -47,9 +52,45 @@ namespace Gameplay.Objectives
             if (IsServer)
             {
                 EventBus.OnInteractableActivated -= HandleInteractableActivated;
+                EventBus.OnPlayerDied -= HandlePlayerDied;
             }
 
             _activatedIds.OnListChanged -= HandleListChanged;
+        }
+
+        private void HandlePlayerDied(ulong clientId)
+        {
+            if (_resetOnDeath)
+            {
+                ResetPuzzle();
+            }
+        }
+
+        [ContextMenu("Reset Puzzle")]
+        public void ResetPuzzle()
+        {
+            if (!IsServer) return;
+
+            _activatedIds.Clear();
+            
+            foreach (var interactable in _cachedInteractables)
+            {
+                interactable.ResetInteractable();
+            }
+
+            Debug.Log("[PuzzleObjectiveManager] Puzzle reset.");
+        }
+
+        private void CacheRequiredInteractables()
+        {
+            var allInteractables = GetComponentsInChildren<InteractableBase>(true);
+            foreach (var interactable in allInteractables)
+            {
+                if (_requiredInteractableIds.Contains(interactable.InteractableId))
+                {
+                    _cachedInteractables.Add(interactable);
+                }
+            }
         }
 
         private void HandleInteractableActivated(string interactableId)
