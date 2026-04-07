@@ -13,6 +13,7 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
     [SerializeField] private bool _showOutlineOnHover = true;
     [SerializeField] protected float _maxInteractDistance = 3f;
     public UnityEvent OnActivated;
+    public UnityEvent OnDeactivated;
 
     // Prompt UI đã được chuyển hoàn toàn sang InteractPromptHUD trên Canvas HUD.
     // InteractableBase không còn quản lý World Space UI nữa.
@@ -126,18 +127,20 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
     {
         if (newValue && !previousValue)
         {
-            if (!_allowReactivation)
-            {
-                //HidePromptUI();
-            }
-
             OnActivated?.Invoke();
             EventBus.RaiseInteractableActivated(_interactableId);
         }
+        else if (!newValue && previousValue)
+        {
+            OnDeactivated?.Invoke();
+        }
     }
 
-    // ShowPromptUI / HidePromptUI đã bị xóa.
-    // Toàn bộ Prompt UI giờ là trách nhiệm của InteractPromptHUD.
+    public virtual void ResetInteractable()
+    {
+        if (!IsServer) return;
+        ServerDeactivate();
+    }
 
     public void SetInteractable(bool state)
     {
