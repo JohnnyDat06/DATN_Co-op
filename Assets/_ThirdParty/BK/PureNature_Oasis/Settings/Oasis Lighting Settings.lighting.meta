@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 1c8ea94e420e4211be0e27c7b6628b35
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 4890085278179872738
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Settings/Presets/Oasis Lighting Settings.lighting
+  uploadId: 717879

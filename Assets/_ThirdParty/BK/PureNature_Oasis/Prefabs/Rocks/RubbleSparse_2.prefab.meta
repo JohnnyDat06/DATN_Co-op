@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 92ba7f1887ba4e09966ed33e06b5e2ce
+labels:
+- Rock
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Prefabs/Rocks/RubbleSparse_2.prefab
+  uploadId: 717879
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

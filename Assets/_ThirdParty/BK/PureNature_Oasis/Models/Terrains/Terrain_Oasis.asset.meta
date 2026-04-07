@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: bfe4cb3186ab4eb5b049d9f7f22d605e
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 15600000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Models/Terrains/Terrain_Oasis.asset
+  uploadId: 717879

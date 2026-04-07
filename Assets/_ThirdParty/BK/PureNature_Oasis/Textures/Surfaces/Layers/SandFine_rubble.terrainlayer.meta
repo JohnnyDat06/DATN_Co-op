@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 92b9365391b84881858f98da9a2c23a5
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 8574412962073106934
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299314
+  packageName: 'Pure Nature 2 : Oasis Desert'
+  packageVersion: 1.0
+  assetPath: Assets/BK/PureNature_Oasis/Textures/Surfaces/Layers/SandFine_rubble.terrainlayer
+  uploadId: 717879
