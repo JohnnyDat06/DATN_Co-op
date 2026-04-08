@@ -120,7 +120,7 @@ public class RockProjectile : NetworkBehaviour
         }
     }
 
-    [Rpc(SendTo.NotServer)]
+    [ClientRpc]
     private void ShatterClientRpc(Vector3 shatterPos)
     {
         _hasCollided = true;

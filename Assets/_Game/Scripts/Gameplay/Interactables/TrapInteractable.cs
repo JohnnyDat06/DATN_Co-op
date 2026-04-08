@@ -22,7 +22,7 @@ namespace Gameplay.Interactables
             TriggerTrapServerRpc(playerId);
         }
 
-        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+        [ServerRpc(RequireOwnership = false)]
         private void TriggerTrapServerRpc(ulong playerId)
         {
             // Kiểm tra điều kiện trên Server
@@ -50,7 +50,7 @@ namespace Gameplay.Interactables
             NotifyTrapTriggeredClientRpc(playerObject.transform.position);
         }
 
-        [Rpc(SendTo.NotServer)]
+        [ClientRpc]
         private void NotifyTrapTriggeredClientRpc(Vector3 playerPosition)
         {
             // Phát âm thanh tại vị trí bẫy hoặc người chơi

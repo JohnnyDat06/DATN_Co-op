@@ -71,7 +71,8 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
         }
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    //[ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, RequireOwnership = false)]
     private void TakeDamageServerRpc(int damage, ulong instigatorClientId)
     {
         ApplyDamage(damage, instigatorClientId);

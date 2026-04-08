@@ -193,7 +193,7 @@ public class NGOPlayerSync : NetworkBehaviour
         }
     }
 
-    [Rpc(SendTo.Owner)]
+    [ClientRpc]
     private void TeleportClientRpc(Vector3 position, Quaternion rotation)
     {
         // Chỉ thực hiện trên máy khách sở hữu (Owner) nhân vật này
