@@ -17,9 +17,9 @@ MonoBehaviour:
   SpeedMin: 8
   SpeedMax: 14
   HorizontalSpeed: 20
-  KnockbackForce: 30
+  KnockbackForce: 40
   FragmentMaterial: {fileID: 2100000, guid: abf70ed82fc2ebf4c9b510478b549045, type: 2}
   FragmentLifetime: 1
   ShadowOffset: 0.1
   VFXImpactPrefab: {fileID: 5292157580998813610, guid: d1cc7d09f243bec4b82ee1f02eaadb4d, type: 3}
-  PoolSize: 20
+  PoolSize: 30
