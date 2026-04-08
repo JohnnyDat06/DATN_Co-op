@@ -596,7 +596,7 @@ public class PlayerController : NetworkBehaviour
     /// <summary>Expose IsGrounded cho các class khác (ví dụ PlayerAnimator).</summary>
     public bool IsGrounded => _isGrounded;
 
-    [ClientRpc]
+    [Rpc(SendTo.NotServer)]
     public void ApplyKnockbackClientRpc(Vector3 force)
     {
         if (!IsOwner) return;
