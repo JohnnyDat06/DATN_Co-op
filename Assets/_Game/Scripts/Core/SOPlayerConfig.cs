@@ -11,6 +11,12 @@ public class SOPlayerConfig : ScriptableObject
     [Tooltip("Máu tối đa của player")]
     public float MaxHealth = 100f;
 
+    [Header("Environment Detection")]
+    [Tooltip("Layer mặt đất (có thể đứng lên, chạy nhảy)")]
+    public LayerMask GroundLayerMask;
+    [Tooltip("Layer tường (có thể bám, nhảy tường)")]
+    public LayerMask WallLayerMask;
+
     [Header("Movement")]
     [Tooltip("Tốc độ đi bộ cơ bản (m/s)")]
     public float MoveSpeed = 5f;

@@ -13,6 +13,12 @@ MonoBehaviour:
   m_Name: SOPlayerConfig_Default
   m_EditorClassIdentifier: 
   MaxHealth: 100
+  GroundLayerMask:
+    serializedVersion: 2
+    m_Bits: 193
+  WallLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
   MoveSpeed: 4
   SprintMultiplier: 1.8
   CrouchSpeedMultiplier: 0.3

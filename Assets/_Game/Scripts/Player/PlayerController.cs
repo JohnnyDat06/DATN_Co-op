@@ -129,7 +129,7 @@ public class PlayerController : NetworkBehaviour
         
         // Dùng SphereCast quét theo đúng hướng nhân vật đang cố đi tới
         if (Physics.SphereCast(origin, _capsule.radius * 0.9f, moveDir, out var hit, 0.3f,
-            LayerMask.GetMask(Constants.Layers.ENVIRONMENT, "Default")))
+            _config.WallLayerMask))
         {
             _isTouchingWall = true;
             _wallNormal = hit.normal;
@@ -482,7 +482,7 @@ public class PlayerController : NetworkBehaviour
         foreach (var dir in dirs)
         {
             if (Physics.Raycast(transform.position + Vector3.up, dir, out var hit, 0.6f,
-                LayerMask.GetMask(Constants.Layers.ENVIRONMENT)))
+                _config.WallLayerMask))
             {
                 _isTouchingWall = true;
                 _wallNormal = hit.normal;
@@ -542,7 +542,7 @@ public class PlayerController : NetworkBehaviour
             Vector3.down, 
             out _, 
             castDistance,
-            LayerMask.GetMask(Constants.Layers.ENVIRONMENT, "Default"));
+            _config.GroundLayerMask);
 
         if (_isGrounded)
         {
