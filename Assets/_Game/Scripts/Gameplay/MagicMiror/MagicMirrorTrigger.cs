@@ -93,7 +93,7 @@ namespace Game.Gameplay
             ToggleAdditionalObjectsClientRpc(active);
         }
 
-        [ClientRpc]
+        [Rpc(SendTo.NotServer)]
         private void ToggleAdditionalObjectsClientRpc(bool active)
         {
             if (IsServer) return; // Already done on server
