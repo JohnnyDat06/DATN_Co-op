@@ -39,7 +39,7 @@ public class CoopInteractable : InteractableBase
         AttemptReadyServerRpc(playerId);
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void AttemptReadyServerRpc(ulong playerId)
     {
         if (!CanInteract) return;

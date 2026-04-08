@@ -141,7 +141,7 @@ public class ErisMinigameManager : NetworkBehaviour
         return path.ToArray();
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.NotServer)]
     private void SetupBoardClientRpc(ulong controllerId, ulong observerId, Vector2Int[] path)
     {
         _syncedPath = path;
@@ -320,7 +320,7 @@ public class ErisMinigameManager : NetworkBehaviour
         _pieceGridPos.Value = _syncedPath[0]; 
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.NotServer)]
     private void WrongMoveEffectClientRpc(Vector2Int wrongPos) { StartCoroutine(WrongMoveRippleEffect(wrongPos)); }
 
     private IEnumerator WrongMoveRippleEffect(Vector2Int wrongPos) {
@@ -382,7 +382,7 @@ public class ErisMinigameManager : NetworkBehaviour
         SuccessEffectClientRpc(_pieceGridPos.Value); 
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.NotServer)]
     private void SuccessEffectClientRpc(Vector2Int finalPos) {
         StartCoroutine(SuccessRippleEffect(finalPos));
     }
