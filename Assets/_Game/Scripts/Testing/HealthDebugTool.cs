@@ -31,7 +31,7 @@ public class HealthDebugTool : NetworkBehaviour
     /// Gửi yêu cầu trừ máu lên Server.
     /// ServerRpc cho phép Client ra lệnh cho Server thực thi logic quan trọng.
     /// </summary>
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    [ServerRpc(RequireOwnership = false)]
     private void RequestDamageServerRpc(ulong targetClientId)
     {
         // Server tìm tất cả PlayerHealth trong scene

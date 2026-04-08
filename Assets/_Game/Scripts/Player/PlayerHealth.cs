@@ -98,7 +98,7 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
         }
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+    [ServerRpc]
     private void RestoreFullHealthServerRpc()
     {
         NetworkHealth.Value = MaxHealth;
@@ -123,7 +123,7 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
     /// Gửi thông báo từ Server xuống tất cả các Client.
     /// Giúp EventBus.OnPlayerDied được kích hoạt đồng bộ trên mọi máy.
     /// </summary>
-    [Rpc(SendTo.NotServer)]
+    [ClientRpc]
     private void NotifyPlayerDiedClientRpc(ulong clientId)
     {
         // Chuyển state máy cục bộ (nếu là owner thì quan trọng nhất)

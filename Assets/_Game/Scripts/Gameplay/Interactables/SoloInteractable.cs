@@ -14,7 +14,7 @@ public class SoloInteractable : InteractableBase
         ActivateServerRpc(playerId);
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    [ServerRpc(RequireOwnership = false)]
     private void ActivateServerRpc(ulong playerId)
     {
         Debug.Log($"[SoloInteractable] <color=cyan>{_interactableId}</color> - Player {playerId} gui yeu cau kich hoat.");

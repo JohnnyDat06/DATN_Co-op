@@ -18,7 +18,7 @@ public class LeverInteractable : InteractableBase
         ToggleServerRpc(playerId);
     }
 
-    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
+    [ServerRpc(RequireOwnership = false)]
     private void ToggleServerRpc(ulong playerId)
     {
         if (!CanPlayerInteract(playerId)) return;
