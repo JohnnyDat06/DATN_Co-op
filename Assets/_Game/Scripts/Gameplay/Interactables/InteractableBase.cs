@@ -140,6 +140,19 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
     {
         if (!IsServer) return;
         ServerDeactivate();
+        _canInteract = true;
+        ResetInteractableClientRpc();
+    }
+
+    [ClientRpc]
+    private void ResetInteractableClientRpc()
+    {
+        // Bật lại GameObject nếu nó bị ẩn đi trước đó
+        gameObject.SetActive(true);
+        _canInteract = true;
+        
+        // Đảm bảo tắt outline nếu còn sót lại
+        if (_outline != null) _outline.enabled = false;
     }
 
     public void SetInteractable(bool state)

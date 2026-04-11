@@ -23,6 +23,7 @@ namespace Gameplay.Objectives
 
         private NetworkList<FixedString32Bytes> _activatedIds;
         private List<InteractableBase> _cachedInteractables = new List<InteractableBase>();
+        private bool _isCompleted = false;
 
         private void Awake()
         {
@@ -60,7 +61,7 @@ namespace Gameplay.Objectives
 
         private void HandlePlayerDied(ulong clientId)
         {
-            if (_resetOnDeath)
+            if (_resetOnDeath && !_isCompleted)
             {
                 ResetPuzzle();
             }
@@ -69,7 +70,7 @@ namespace Gameplay.Objectives
         [ContextMenu("Reset Puzzle")]
         public void ResetPuzzle()
         {
-            if (!IsServer) return;
+            if (!IsServer || _isCompleted) return;
 
             _activatedIds.Clear();
             
@@ -83,19 +84,44 @@ namespace Gameplay.Objectives
 
         private void CacheRequiredInteractables()
         {
-            var allInteractables = GetComponentsInChildren<InteractableBase>(true);
+            _cachedInteractables.Clear();
+            
+            // Tìm kiếm tất cả Interactable trong Scene (bao gồm cả các object đang bị disable)
+            var allInteractables = Object.FindObjectsByType<InteractableBase>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            
             foreach (var interactable in allInteractables)
             {
                 if (_requiredInteractableIds.Contains(interactable.InteractableId))
                 {
-                    _cachedInteractables.Add(interactable);
+                    if (!_cachedInteractables.Contains(interactable))
+                    {
+                        _cachedInteractables.Add(interactable);
+                    }
+                }
+            }
+
+            // Kiểm tra xem có ID nào không tìm thấy object không để cảnh báo
+            foreach (var id in _requiredInteractableIds)
+            {
+                bool found = false;
+                foreach (var cached in _cachedInteractables)
+                {
+                    if (cached.InteractableId == id)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    Debug.LogWarning($"[PuzzleObjectiveManager] Khong tim thay Interactable voi ID: {id} trong Scene. Reset se khong hoat dong cho ID nay.");
                 }
             }
         }
 
         private void HandleInteractableActivated(string interactableId)
         {
-            if (!IsServer) return;
+            if (!IsServer || _isCompleted) return;
 
             // Kiểm tra xem ID này có nằm trong danh sách yêu cầu không
             if (_requiredInteractableIds.Contains(interactableId))
@@ -136,8 +162,9 @@ namespace Gameplay.Objectives
 
         private void CheckCompletion()
         {
+            if (_isCompleted) return;
+
             // Kiểm tra xem tất cả các ID yêu cầu đã có trong danh sách activated chưa
-            // (Đề phòng trường hợp danh sách yêu cầu có trùng ID hoặc các ID không mong muốn)
             int matchCount = 0;
             foreach (var reqId in _requiredInteractableIds)
             {
@@ -153,6 +180,14 @@ namespace Gameplay.Objectives
 
             if (matchCount >= _requiredInteractableIds.Count)
             {
+                _isCompleted = true; // Đánh dấu đã xong
+                
+                // Hủy đăng ký sự kiện chết của người chơi để không bao giờ reset nữa
+                if (IsServer)
+                {
+                    EventBus.OnPlayerDied -= HandlePlayerDied;
+                }
+
                 Debug.Log("[PuzzleObjectiveManager] TAT CA VAT PHAM DA DUOC TUONG TAC! Muc tieu hoan thanh.");
                 OnObjectiveCompleted?.Invoke();
 
