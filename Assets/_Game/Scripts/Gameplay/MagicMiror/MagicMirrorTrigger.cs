@@ -18,6 +18,15 @@ namespace Game.Gameplay
         private bool isPlayerNearby;
         private float nextCheckTime;
 
+        private void Awake()
+        {
+            // Đảm bảo tất cả object bổ sung đều ẩn khi bắt đầu game
+            foreach (var obj in additionalObjectsToActivate)
+            {
+                if (obj != null) obj.SetActive(false);
+            }
+        }
+
         private void Update()
         {
             // Only the server should process the trigger logic
