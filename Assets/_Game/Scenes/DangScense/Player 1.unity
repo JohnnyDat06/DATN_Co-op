@@ -999,6 +999,18 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 4236062579
       objectReference: {fileID: 0}
+    - target: {fileID: 6450157764070419735, guid: fc98ccb96f7025549a509262c359b8a1, type: 3}
+      propertyPath: _configTopDown
+      value: 
+      objectReference: {fileID: 11400000, guid: 7bea9ac131c11bf43a2fb27f1cd50b37, type: 2}
+    - target: {fileID: 6450157764070419735, guid: fc98ccb96f7025549a509262c359b8a1, type: 3}
+      propertyPath: _vcamTopDownObserver
+      value: 
+      objectReference: {fileID: 15185037}
+    - target: {fileID: 6450157764070419735, guid: fc98ccb96f7025549a509262c359b8a1, type: 3}
+      propertyPath: _vcamTopDownController
+      value: 
+      objectReference: {fileID: 685433094}
     - target: {fileID: 7796446547378241932, guid: fc98ccb96f7025549a509262c359b8a1, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
@@ -1094,6 +1106,10 @@ MonoBehaviour:
   NextAreaSpawn: {fileID: 125230331}
   ControllerStandPos: {fileID: 67451087}
   ObserverStandPos: {fileID: 38405610}
+  _gameStartFeedback: {fileID: 0}
+  _gameSuccessFeedback: {fileID: 0}
+  _gameFailureFeedback: {fileID: 0}
+  _moveFeedback: {fileID: 0}
   CameraOffset: {x: 4.935221, y: 14, z: 5}
   CameraFOV: 60
   CorrectMoveSFX: {fileID: 11400000, guid: b75badb85c97a65458c6b57b11621ac1, type: 2}
@@ -1103,6 +1119,7 @@ MonoBehaviour:
   ControllerWaitingSFX: {fileID: 11400000, guid: 62969470954448545b986be2df508d84, type: 2}
   ObserverPathRevealSFX: {fileID: 11400000, guid: b75badb85c97a65458c6b57b11621ac1, type: 2}
   ReadyToPlaySFX: {fileID: 11400000, guid: ee05a1213e09541439053d69cffd59c3, type: 2}
+  _allowDebugCheat: 1
 --- !u!65 &618588418
 BoxCollider:
   m_ObjectHideFlags: 0
