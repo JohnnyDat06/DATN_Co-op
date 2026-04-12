@@ -13,7 +13,8 @@
 6. [Quy chuẩn mã nguồn (Coding Standards)](#6-quy-chuẩn-mã-nguồn-coding-standards)
 7. [Cấu trúc thư mục chi tiết (Directory Structure)](#7-cấu-trúc-thư-mục-chi-tiết-directory-structure)
 8. [Lưu ý khi làm việc với Unity](#8-lưu-ý-khi-làm-việc-với-unity)
-9. [Tài liệu tham khảo (References)](#9-tài-liệu-tham-khảo-references)
+9. [Quy trình Revert, Reapply & Discard (GitHub Desktop)](#9-quy-trình-revert-reapply--discard)
+10. [Tài liệu tham khảo (References)](#10-tài-liệu-tham-khảo-references)
 
 ---
 
@@ -33,9 +34,9 @@ Trước khi bắt đầu sửa lỗi hoặc thêm tính năng, hãy tạo một
 
 Cấu trúc: `type/short-description`
 
-- `feature/ten-tinh-nang`: Thêm tính năng mới.
+- `feat/ten-tinh-nang`: Thêm tính năng mới.
 - `bugfix/ten-loi`: Sửa lỗi.
-- `hotfix/loi-nghiem-trong`: Sửa lỗi khẩn cấp trên nhánh chính.
+- `hotfix/loi-nghiem-trong`: Sửa lỗi khẩn cấp.
 - `refactor/ten-module`: Tái cấu trúc mã nguồn.
 - `docs/ten-tai-lieu`: Cập nhật tài liệu.
 
@@ -60,13 +61,27 @@ Cấu trúc Summary: `prefix: short description`
 - `fix`: Sửa lỗi.
 - `refactor`: Thay đổi mã nguồn nhưng không sửa lỗi hay thêm tính năng.
 - `docs`: Cập nhật tài liệu.
-- `chore`: Các công việc lặt vặt (cập nhật build scripts, thêm thư viện).
+- `chore`: Các công việc lặt vặt (cập nhật build scripts, thêm thư viện, dọn rác).
 - `style`: Thay đổi về format, không ảnh hưởng tới logic.
 - `test`: Thêm hoặc sửa các bài test.
 
 **Ví dụ:**
 - `feat: implement double jump logic`
 - `fix: resolve null reference in PlayerHealth`
+
+**Mẫu Pull request:**
+```text
+  Branch Name:
+  docs/update-contributing-guidelines
+
+  Commit Message:
+  docs: update contributing guidelines and add project references
+
+  - Added table of contents and emphasized mandatory compliance.
+  - Enforced English for branch names and commit messages.
+  - Added guidelines for Prefab and Core system management.
+  - Included references to DOCS_ARCH.md and external project resources.
+```
 
 ## 5. Quản lý đồng bộ qua Prefab & Core Systems
 Để đảm bảo tính nhất quán giữa các Scene và các Client trong mạng:
@@ -113,7 +128,22 @@ D:\GameProjects\DATN_Co-op\
 - **Scene Work:** Hạn chế làm việc chung trên một Scene lớn. Sử dụng tính năng **Multi-Scene Editing** nếu cần hoặc làm việc trên Prefab.
 - **Validation:** Chạy build test định kỳ để đảm bảo tính năng hoạt động trên môi trường đóng gói (Standalone Build).
 
-## 9. Tài liệu tham khảo (References)
+## 9. Quy trình Revert, Reapply & Discard
+Hướng dẫn xử lý các thay đổi mã nguồn an toàn bằng GitHub Desktop:
+
+- **Discard (Hủy bỏ):** Chuột phải vào file trong tab **Changes** -> chọn **Discard changes...**. Dùng để xóa các thay đổi chưa commit. **Thận trọng:** Hành động này không thể hoàn tác.
+- **Undo (Hoàn tác commit cục bộ):** Nhấn nút **Undo** ở phía dưới tab **Changes**. Dùng khi vừa commit xong (chưa Push) và muốn sửa lại nội dung commit đó.
+- **Revert (Đảo ngược commit đã Push):** Vào tab **History**, chuột phải vào commit gây lỗi -> chọn **Revert changes in commit**. GitHub Desktop sẽ tạo một commit mới `đảo ngược` toàn bộ thay đổi của commit đó.
+- **Reapply (Áp dụng lại):** Revert lại chính commit Revert trước đó để đưa tính năng trở lại trạng thái ban đầu một cách sạch sẽ nhất.
+
+**Ví dụ xử lý lỗi từng phần (Partial Revert):**
+Giả sử một Pull Request có 2 file thay đổi: **File A** (hoạt động tốt) và **File B** (gây lỗi). Bạn muốn giữ lại thay đổi của File A nhưng loại bỏ File B:
+1. Thực hiện **Revert** toàn bộ commit/PR đó (tất cả File A và B đều bị đảo ngược).
+2. Nhấn nút **Undo** ở phía dưới tab **Changes** để các thay đổi đảo ngược hiện lên.
+3. Thực hiện **Discard changes** **File A** để giữ nguyên tính năng mới, chỉ giữ lại change revert **File B** để đảo ngược thành phần gây lỗi. 
+=> Kết quả: File B bị đảo ngược về trạng thái trước lúc commit (loại bỏ lỗi), trong khi File A vẫn giữ tính năng mới (sau commit).
+
+## 10. Tài liệu tham khảo (References)
 - **Kiến trúc hệ thống cơ bản:** Xem tệp [DOCS_ARCH.md](./DOCS_ARCH.md) tại thư mục gốc để nắm vững luồng xử lý và các EventBus signals.
 - **Tài liệu cơ sở (Google Drive):** [DATN_Co-op Resources](https://drive.google.com/drive/folders/1JeRYYWAEI-OGims3ZYcrIyrYehzhNitG) - Bao gồm SRS, thiết kế game và các tài liệu liên quan khác.
 
