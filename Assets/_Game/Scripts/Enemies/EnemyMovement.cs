@@ -13,35 +13,35 @@ public class EnemyMovement : NetworkBehaviour
     #region Configuration
     [Header("Movement Settings")]
     [Tooltip("Tốc độ xoay của enemy.")]
-    [SerializeField] private float _alignSpeed = 360f;
+    [SerializeField] protected float _alignSpeed = 360f;
 
     [Tooltip("Khoảng cách để dừng lại khi đến đích.")]
-    [SerializeField] private float _stopDistance = 0.1f;
+    [SerializeField] protected float _stopDistance = 0.1f;
 
     [Header("Animation Speed Scale")]
     [Tooltip("Tỉ lệ tốc độ animation khi đi bộ (ảnh hưởng trực tiếp đến tốc độ di chuyển Root Motion).")]
-    [SerializeField] private float _walkSpeedScale = 1f;
+    [SerializeField] protected float _walkSpeedScale = 1f;
 
     [Tooltip("Tỉ lệ tốc độ animation khi chạy (ảnh hưởng trực tiếp đến tốc độ di chuyển Root Motion).")]
-    [SerializeField] private float _runSpeedScale = 1f;
+    [SerializeField] protected float _runSpeedScale = 1f;
 
     [Header("State Control")]
     [Tooltip("Cờ xác định enemy đang đi bộ hay chạy.")]
-    [SerializeField] private bool _isRunning = false;
+    [SerializeField] protected bool _isRunning = false;
     #endregion
 
     #region Internal State
-    private NavMeshAgent _agent;
-    private Animator _animator;
+    protected NavMeshAgent _agent;
+    protected Animator _animator;
 
-    private bool _hasTarget;
+    protected bool _hasTarget;
 
     // Animator Parameter Hashes
-    private readonly int _hashSpeed = Animator.StringToHash("Speed");
+    protected readonly int _hashSpeed = Animator.StringToHash("Speed");
     #endregion
 
     #region Unity Lifecycle
-    private void Awake()
+    protected virtual void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
         _animator = GetComponent<Animator>();
@@ -62,7 +62,7 @@ public class EnemyMovement : NetworkBehaviour
         _agent.updatePosition = false;
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         if (!IsServer) return;
 
@@ -72,7 +72,7 @@ public class EnemyMovement : NetworkBehaviour
         }
     }
 
-    private void OnAnimatorMove()
+    protected virtual void OnAnimatorMove()
     {
         if (!IsServer || _animator == null) return;
 
@@ -111,7 +111,7 @@ public class EnemyMovement : NetworkBehaviour
     /// <summary>
     /// Ra lệnh cho enemy di chuyển tới vị trí đích.
     /// </summary>
-    public void MoveTo(Vector3 position, bool run = false)
+    public virtual void MoveTo(Vector3 position, bool run = false)
     {
         if (!IsServer) return;
         
@@ -129,7 +129,7 @@ public class EnemyMovement : NetworkBehaviour
     /// <summary>
     /// Cập nhật trạng thái chạy/đi bộ.
     /// </summary>
-    public void SetRunning(bool run)
+    public virtual void SetRunning(bool run)
     {
         if (!IsServer) return;
         _isRunning = run;
@@ -138,7 +138,7 @@ public class EnemyMovement : NetworkBehaviour
     /// <summary>
     /// Dừng enemy ngay lập tức.
     /// </summary>
-    public void Stop()
+    public virtual void Stop()
     {
         if (!IsServer) return;
 
@@ -156,7 +156,7 @@ public class EnemyMovement : NetworkBehaviour
     #endregion
 
     #region Helper Logic
-    private void HandleNormalMovement()
+    protected virtual void HandleNormalMovement()
     {
         // Kiểm tra xem đã đến đích chưa
         if (!_agent.pathPending && _agent.remainingDistance <= _stopDistance)
@@ -178,7 +178,7 @@ public class EnemyMovement : NetworkBehaviour
         _animator.SetFloat(_hashSpeed, targetSpeed, 0.1f, Time.deltaTime);
     }
 
-    private void RotateTowards(Vector3 targetPos)
+    protected virtual void RotateTowards(Vector3 targetPos)
     {
         Vector3 dir = (targetPos - transform.position).normalized;
         dir.y = 0;
