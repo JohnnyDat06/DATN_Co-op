@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.Cinemachine;
 using UnityEngine;
+using MoreMountains.Feedbacks;
 
 public class ErisMinigameManager : NetworkBehaviour
 {
@@ -14,8 +15,13 @@ public class ErisMinigameManager : NetworkBehaviour
     public Transform ControllerStandPos; 
     public Transform ObserverStandPos;   
 
+    [Header("Feel Feedbacks")]
+    [SerializeField] private MMF_Player _gameStartFeedback;
+    [SerializeField] private MMF_Player _gameSuccessFeedback;
+    [SerializeField] private MMF_Player _gameFailureFeedback;
+    [SerializeField] private MMF_Player _moveFeedback;
+
     [Header("Camera Customization")]
-    [Tooltip("Vị trí camera so với Manager (Center)")]
     public Vector3 CameraOffset = new Vector3(4.935221f, 14f, 5f);
     public float CameraFOV = 60f;
 
@@ -24,9 +30,13 @@ public class ErisMinigameManager : NetworkBehaviour
     public SOAudioClip WrongMoveSFX;
     public SOAudioClip SuccessSFX;
     public SOAudioClip RevealTileSFX;
-    public SOAudioClip ControllerWaitingSFX; // Âm thanh cho người điều khiển khi bắt đầu (đợi)
-    public SOAudioClip ObserverPathRevealSFX; // Âm thanh cho người quan sát khi bắt đầu (nhìn đường)
-    public SOAudioClip ReadyToPlaySFX;        // Âm thanh khi người quan sát nhấn E để sẵn sàng
+    public SOAudioClip ControllerWaitingSFX; 
+    public SOAudioClip ObserverPathRevealSFX; 
+    public SOAudioClip ReadyToPlaySFX;
+
+    [Header("Debug")]
+    [SerializeField] private bool _allowDebugCheat = true;
+    private bool _showDebugPath = false;
 
     private List<ErisTile> _spawnedTiles = new List<ErisTile>();
     private Vector2Int[] _syncedPath; 
@@ -37,7 +47,7 @@ public class ErisMinigameManager : NetworkBehaviour
     private NetworkVariable<ulong> _controllerId = new NetworkVariable<ulong>();
     private NetworkVariable<ulong> _observerId = new NetworkVariable<ulong>();
     private NetworkVariable<int> _currentStepIndex = new NetworkVariable<int>(0);
-    private NetworkVariable<Vector2Int> _pieceGridPos = new NetworkVariable<Vector2Int>();
+    private NetworkVariable<Vector2Int> _pieceGridPos = new NetworkVariable<Vector2Int>(new Vector2Int(-1,-1));
 
     private GameObject _spawnedPieceInstance;
     private Dictionary<ulong, Vector3> _lockedPositions = new Dictionary<ulong, Vector3>();
@@ -45,8 +55,12 @@ public class ErisMinigameManager : NetworkBehaviour
     
     private Coroutine _moveCoroutine;
     private Coroutine _pathLoopCoroutine;
+    private Coroutine _spawnCoroutine;
+    private Coroutine _idleWaveCoroutine; 
     private bool _isReseting = false; 
-    private bool _canInput = true;
+    private bool _canInput = false;
+
+    private const float TILE_SPACING = 1.3f;
 
     private readonly KeyCode[] _upKeys = { KeyCode.W, KeyCode.UpArrow };
     private readonly KeyCode[] _downKeys = { KeyCode.S, KeyCode.DownArrow };
@@ -57,18 +71,14 @@ public class ErisMinigameManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        _pieceGridPos.OnValueChanged += (oldVal, newVal) => UpdatePieceTarget(newVal);
+        _pieceGridPos.OnValueChanged += (oldVal, newVal) => { if (newVal.x != -1) UpdatePieceTargetSafe(newVal); };
         _isMemorizing.OnValueChanged += (oldVal, newVal) => { 
-            Debug.Log($"[ErisBoard] isMemorizing changed to {newVal} for PlayerID {NetworkManager.Singleton.LocalClientId}");
             if (!newVal) {
                 StopPathLoop();
-                // Dừng âm thanh chờ nếu có (chỉ Controller mới có _loopingSource)
-                if (_loopingSource != null) {
-                    AudioManager.Instance.StopSFX(_loopingSource);
-                    _loopingSource = null; 
-                }
-                // Phát âm thanh sẵn sàng cho CẢ HAI người cùng nghe (phát local trên từng máy)
+                if (_loopingSource != null) { AudioManager.Instance.StopSFX(_loopingSource); _loopingSource = null; }
                 AudioManager.Instance.PlaySFX(ReadyToPlaySFX);
+                if (_idleWaveCoroutine != null) StopCoroutine(_idleWaveCoroutine);
+                _idleWaveCoroutine = StartCoroutine(IdleWaveRoutine());
             }
         };
     }
@@ -76,66 +86,42 @@ public class ErisMinigameManager : NetworkBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (!IsServer || _isGameActive.Value || _hasCompleted.Value) return;
-        if (other.CompareTag("Player") && other.TryGetComponent<NetworkObject>(out var netObj))
-        {
-            StartMinigameServer(netObj.OwnerClientId);
-        }
+        if (other.CompareTag("Player") && other.TryGetComponent<NetworkObject>(out var netObj)) { StartMinigameServer(netObj.OwnerClientId); }
     }
 
     private void StartMinigameServer(ulong triggerPlayerId)
     {
-        _isGameActive.Value = true;
-        _isMemorizing.Value = true;
-        _controllerId.Value = triggerPlayerId;
-        
-        // Tìm người còn lại làm Observer
-        foreach (var client in NetworkManager.Singleton.ConnectedClientsList) {
-            if (client.ClientId != triggerPlayerId) {
-                _observerId.Value = client.ClientId;
-                break;
-            }
-        }
-
-        _syncedPath = GeneratePathArray();
-        _pieceGridPos.Value = _syncedPath[0];
-        _currentStepIndex.Value = 0;
-
-        SpawnChessPieceServer();
-        SetupBoardClientRpc(_controllerId.Value, _observerId.Value, _syncedPath);
+        _isGameActive.Value = true; _isMemorizing.Value = true; _controllerId.Value = triggerPlayerId; _hasCompleted.Value = false;
+        foreach (var client in NetworkManager.Singleton.ConnectedClientsList) { if (client.ClientId != triggerPlayerId) { _observerId.Value = client.ClientId; break; } }
+        _syncedPath = GeneratePathArray(); _pieceGridPos.Value = _syncedPath[0]; _currentStepIndex.Value = 0;
+        SpawnChessPieceServer(); SetupBoardClientRpc(_controllerId.Value, _observerId.Value, _syncedPath);
     }
 
     private Vector2Int[] GeneratePathArray()
     {
-        List<Vector2Int> path = new List<Vector2Int>();
-        bool success = false;
+        List<Vector2Int> path = new List<Vector2Int>(); bool success = false;
         while (!success) {
-            path.Clear();
-            Vector2Int current = new Vector2Int(Random.Range(0, 10), 0);
-            path.Add(current);
+            path.Clear(); Vector2Int current = new Vector2Int(Random.Range(0, 10), 0); path.Add(current);
             while (current.y < 9) {
                 List<Vector2Int> moves = new List<Vector2Int>();
                 Vector2Int[] neighbors = { current + Vector2Int.up, current + Vector2Int.left, current + Vector2Int.right, current + Vector2Int.down };
                 foreach (var m in neighbors) {
                     if (m.x >= 0 && m.x < 10 && m.y >= 0 && m.y < 10 && !path.Contains(m)) {
                         int count = 0;
-                        if (path.Contains(m + Vector2Int.up)) count++;
-                        if (path.Contains(m + Vector2Int.down)) count++;
-                        if (path.Contains(m + Vector2Int.left)) count++;
-                        if (path.Contains(m + Vector2Int.right)) count++;
+                        if (path.Contains(m + Vector2Int.up)) count++; if (path.Contains(m + Vector2Int.down)) count++;
+                        if (path.Contains(m + Vector2Int.left)) count++; if (path.Contains(m + Vector2Int.right)) count++;
                         if (count <= 1) moves.Add(m);
                     }
                 }
                 if (moves.Count == 0) break;
-                List<Vector2Int> sideMoves = moves.FindAll(v => v.y == current.y);
-                float r = Random.value;
+                List<Vector2Int> sideMoves = moves.FindAll(v => v.y == current.y); float r = Random.value;
                 if (sideMoves.Count > 0 && r < 0.6f) current = sideMoves[Random.Range(0, sideMoves.Count)];
                 else {
                     List<Vector2Int> upMoves = moves.FindAll(v => v.y > current.y);
                     if (upMoves.Count > 0) current = upMoves[Random.Range(0, upMoves.Count)];
                     else current = moves[Random.Range(0, moves.Count)];
                 }
-                path.Add(current);
-                if (current.y == 9 && path.Count >= 15 && path.Count <= 25) success = true;
+                path.Add(current); if (current.y == 9 && path.Count >= 15 && path.Count <= 25) success = true;
             }
         }
         return path.ToArray();
@@ -144,69 +130,84 @@ public class ErisMinigameManager : NetworkBehaviour
     [ClientRpc]
     private void SetupBoardClientRpc(ulong controllerId, ulong observerId, Vector2Int[] path)
     {
-        _syncedPath = path;
-        CleanupBoard();
-        for (int x = 0; x < 10; x++)
-            for (int y = 0; y < 10; y++) {
-                Vector3 worldPos = transform.TransformPoint(new Vector3(x * 1.1f, 0, y * 1.1f)); 
-                GameObject tileObj = Instantiate(TilePrefab, worldPos, transform.rotation, transform);
-                ErisTile tile = tileObj.GetComponent<ErisTile>();
-                tile.Init(new Vector2Int(x, y));
-                _spawnedTiles.Add(tile);
-            }
-
+        _syncedPath = path; CleanupBoardImmediate(); 
+        try { if (_gameStartFeedback != null) _gameStartFeedback.PlayFeedbacks(); } catch {}
+        _spawnCoroutine = StartCoroutine(SpawnTilesWaveDiagonalSafe());
         var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
         if (lp != null) {
-            if(lp.TryGetComponent<Rigidbody>(out var rb)) { rb.linearVelocity = Vector3.zero; rb.isKinematic = true; }
+            if(lp.TryGetComponent<Rigidbody>(out var rb)) { if (!rb.isKinematic) rb.linearVelocity = Vector3.zero; rb.isKinematic = true; }
             if(lp.TryGetComponent<PlayerStateMachine>(out var fsm)) fsm.TransitionTo(PlayerStateType.Idle);
-            
             Transform standPos = (NetworkManager.Singleton.LocalClientId == controllerId) ? ControllerStandPos : ObserverStandPos;
             if (standPos != null) { lp.transform.position = standPos.position; lp.transform.rotation = standPos.rotation; }
-            _lockedPositions[NetworkManager.Singleton.LocalClientId] = lp.transform.position;
-            _lockedRotations[NetworkManager.Singleton.LocalClientId] = lp.transform.rotation;
+            _lockedPositions[NetworkManager.Singleton.LocalClientId] = lp.transform.position; _lockedRotations[NetworkManager.Singleton.LocalClientId] = lp.transform.rotation;
         }
-
         CameraPreset preset = (NetworkManager.Singleton.LocalClientId == controllerId) ? CameraPreset.TopDownController : CameraPreset.TopDownObserver;
-        CameraManager.Instance.SwitchCamera(preset);
-        SyncCameraToManager();
-
-        ulong localId = NetworkManager.Singleton.LocalClientId;
-        Debug.Log($"[ErisBoard] SetupBoardClientRpc - LocalID: {localId}, ControllerID: {controllerId}, ObserverID: {observerId}");
-
-        if (localId == controllerId) {
-            if (BlackFogVFX != null) BlackFogVFX.Play();
-            // Người điều khiển nghe âm thanh chờ (Lặp lại)
-            if (_loopingSource != null) AudioManager.Instance.StopSFX(_loopingSource);
+        if (CameraManager.Instance != null) { CameraManager.Instance.SwitchCamera(preset); StartCoroutine(DelayedCameraSync()); }
+        if (NetworkManager.Singleton.LocalClientId == controllerId) {
+            if (BlackFogVFX != null) BlackFogVFX.Play(); if (_loopingSource != null) AudioManager.Instance.StopSFX(_loopingSource);
             _loopingSource = AudioManager.Instance.PlaySFXLoop(ControllerWaitingSFX);
-            Debug.Log("[ErisBoard] Controller start: Waiting sound loop started.");
         } 
-        else if (localId == observerId) {
-            StartPathLoop();
-            // Người quan sát: Âm thanh từng ô sẽ được phát trong PathRevealRoutine
-            // Phát âm thanh khởi động con đường 1 lần
-            AudioManager.Instance.PlaySFX(ObserverPathRevealSFX);
-            Debug.Log("[ErisBoard] Observer start: Reveal sound sequence started.");
-        }
-
-        EventBus.RaiseGamePaused(); UpdatePieceTarget(path[0]); 
+        else if (NetworkManager.Singleton.LocalClientId == observerId) { StartPathLoop(); AudioManager.Instance.PlaySFX(ObserverPathRevealSFX); }
+        EventBus.RaiseGamePaused(); 
     }
 
+    private IEnumerator DelayedCameraSync() { yield return new WaitForSeconds(0.2f); SyncCameraToManager(); }
+
+    private IEnumerator SpawnTilesWaveDiagonalSafe()
+    {
+        _spawnedTiles.Clear();
+        for (int sum = 0; sum <= 18; sum++) {
+            for (int x = 0; x <= sum; x++) {
+                int y = sum - x;
+                if (x < 10 && y < 10) {
+                    Vector3 worldPos = transform.TransformPoint(new Vector3(x * TILE_SPACING, 0, y * TILE_SPACING)); 
+                    GameObject tileObj = Instantiate(TilePrefab, worldPos, transform.rotation, transform);
+                    ErisTile tile = tileObj.GetComponent<ErisTile>(); try { tile.Init(new Vector2Int(x, y)); } catch {}
+                    _spawnedTiles.Add(tile);
+                }
+            }
+            yield return new WaitForSeconds(0.04f); 
+        }
+        _canInput = true; UpdatePieceTargetSafe(_pieceGridPos.Value);
+    }
+
+    private IEnumerator IdleWaveRoutine() {
+        float timer = 0;
+        while (_isGameActive.Value && !_hasCompleted.Value) {
+            yield return new WaitForSeconds(0.2f); // Nhịp độ "mưa rơi"
+            if (_isReseting || _isMemorizing.Value) continue;
+
+            // 1. Hiệu ứng Raindrop: Nhúng nhảy ngẫu nhiên 2-3 ô
+            for (int i = 0; i < 2; i++) {
+                int idx = Random.Range(0, _spawnedTiles.Count);
+                if (_spawnedTiles[idx] != null) _spawnedTiles[idx].PlayIdleBounce();
+            }
+
+            // 2. Hiệu ứng Center Pulse: Cứ mỗi 5 giây nổ một sóng từ tâm
+            timer += 0.2f;
+            if (timer >= 5f) {
+                timer = 0;
+                Vector2Int center = new Vector2Int(5, 5);
+                for (int radius = 0; radius <= 8; radius++) {
+                    foreach (var t in _spawnedTiles) {
+                        if (t != null) {
+                            int dist = Mathf.Max(Mathf.Abs(t.GridPos.x - center.x), Mathf.Abs(t.GridPos.y - center.y));
+                            if (dist == radius) t.PlayIdleBounce();
+                        }
+                    }
+                    yield return new WaitForSeconds(0.06f);
+                }
+            }
+        }
+    }
 
     private void SyncCameraToManager() {
         var vcams = FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
         foreach (var vcam in vcams) {
-            if (vcam.name.Contains("TopDown")) {
-                // Tắt Follow/LookAt để dùng vị trí tĩnh
-                vcam.Target.TrackingTarget = null;
-                vcam.Target.LookAtTarget = null;
-                
-                // Đặt vị trí camera tương đối so với Manager
-                vcam.transform.position = transform.TransformPoint(CameraOffset);
-                vcam.transform.rotation = Quaternion.Euler(90f, transform.eulerAngles.y, 0f);
-                
-                var lens = vcam.Lens;
-                lens.FieldOfView = CameraFOV;
-                vcam.Lens = lens;
+            if (vcam.isActiveAndEnabled) {
+                vcam.Target.TrackingTarget = null; vcam.Target.LookAtTarget = null;
+                vcam.transform.position = transform.TransformPoint(CameraOffset); vcam.transform.rotation = Quaternion.Euler(90f, transform.eulerAngles.y, 0f);
+                var lens = vcam.Lens; lens.FieldOfView = CameraFOV; vcam.Lens = lens;
             }
         }
     }
@@ -215,47 +216,27 @@ public class ErisMinigameManager : NetworkBehaviour
     private void StopPathLoop() {
         if (_pathLoopCoroutine != null) StopCoroutine(_pathLoopCoroutine);
         foreach (var t in _spawnedTiles) t.RestoreColor();
-        
-        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value) 
-        { 
-            if (BlackFogVFX != null) { BlackFogVFX.Stop(); BlackFogVFX.Clear(); } 
-            // Tự động hiển thị các ô có thể đi tiếp theo ngay khi bắt đầu chơi
-            HighlightPossibleMoves(_pieceGridPos.Value);
-        }
-        else 
-        { 
-            ErisTile st = GetTileAt(_syncedPath[0]); 
-            if (st != null) st.SetColor(Color.green, true); 
-        }
+        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value) { if (BlackFogVFX != null) { BlackFogVFX.Stop(); BlackFogVFX.Clear(); } HighlightPossibleMoves(_pieceGridPos.Value); }
+        else { ErisTile st = GetTileAt(_syncedPath[0]); if (st != null) st.SetColor(Color.green, true); }
     }
 
     private IEnumerator PathRevealRoutine() {
+        while (_spawnedTiles.Count < 100) yield return null;
         while (true) {
             foreach (var t in _spawnedTiles) t.ResetTile();
-            yield return new WaitForSeconds(0.5f); // Đợi 1 chút trước khi bắt đầu nhịp mới
-
+            yield return new WaitForSeconds(0.5f); 
             foreach (var step in _syncedPath) {
                 ErisTile tile = GetTileAt(step);
-                if (tile != null) {
-                    tile.SetColor(Color.green);
-                    // BUỘC PHÁT ÂM THANH 2D CHO TỪNG Ô
-                    if (RevealTileSFX != null) AudioManager.Instance.PlaySFX(RevealTileSFX);
-                }
-                yield return new WaitForSeconds(0.2f); // Tăng thời gian giãn cách một chút để nghe rõ hơn
+                if (tile != null) { tile.SetColor(Color.green); if (RevealTileSFX != null) AudioManager.Instance.PlaySFX(RevealTileSFX); }
+                yield return new WaitForSeconds(0.2f); 
             }
-            yield return new WaitForSeconds(2.5f); // Nghỉ giữa các vòng lặp
+            yield return new WaitForSeconds(2.5f); 
         }
     }
 
-    private void SyncCameraRotation() {
-        var vcams = FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
-        foreach (var vcam in vcams) vcam.transform.rotation = Quaternion.Euler(90f, transform.eulerAngles.y, 0f);
-    }
-
     private void SpawnChessPieceServer() {
-        Vector3 worldStart = transform.TransformPoint(new Vector3(_pieceGridPos.Value.x * 1.1f, 0.5f, _pieceGridPos.Value.y * 1.1f));
-        _spawnedPieceInstance = Instantiate(ChessPiecePrefab, worldStart, transform.rotation);
-        _spawnedPieceInstance.GetComponent<NetworkObject>().Spawn();
+        Vector3 worldStart = transform.TransformPoint(new Vector3(_pieceGridPos.Value.x * TILE_SPACING, 0.5f, _pieceGridPos.Value.y * TILE_SPACING));
+        _spawnedPieceInstance = Instantiate(ChessPiecePrefab, worldStart, transform.rotation); _spawnedPieceInstance.GetComponent<NetworkObject>().Spawn();
     }
 
     private void Update() {
@@ -265,28 +246,23 @@ public class ErisMinigameManager : NetworkBehaviour
             if(_lockedPositions.TryGetValue(NetworkManager.Singleton.LocalClientId, out Vector3 lockPos)) lp.transform.position = lockPos;
             if(_lockedRotations.TryGetValue(NetworkManager.Singleton.LocalClientId, out Quaternion lockRot)) lp.transform.rotation = lockRot;
         }
-        if (NetworkManager.Singleton.LocalClientId == _observerId.Value) 
-        { 
-            if (_isMemorizing.Value && Input.GetKeyDown(KeyCode.E)) ReadyToPlayServerRpc(); 
-        }
-        
-        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value) 
-        { 
-            if (!_isMemorizing.Value && !_isReseting && _canInput) HandleKeyboardInput(); 
-        }
+        if (NetworkManager.Singleton.LocalClientId == _observerId.Value && _isMemorizing.Value && Input.GetKeyDown(KeyCode.E)) ReadyToPlayServerRpc(); 
+        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value && !_isMemorizing.Value && !_isReseting && _canInput) HandleKeyboardInput(); 
+        if (_allowDebugCheat && (Input.GetKeyDown(KeyCode.Plus) || Input.GetKeyDown(KeyCode.KeypadPlus) || Input.GetKeyDown(KeyCode.Equals))) { _showDebugPath = !_showDebugPath; ToggleDebugPath(_showDebugPath); }
+    }
+
+    private void ToggleDebugPath(bool show) {
+        if (show) { foreach (var pos in _syncedPath) { ErisTile t = GetTileAt(pos); if (t != null) t.SetColor(Color.yellow); } }
+        else { foreach (var t in _spawnedTiles) t.RestoreColor(); }
     }
 
     private void HandleKeyboardInput() {
         Vector2Int moveDir = Vector2Int.zero;
-        if (AnyKeyPressed(_upKeys)) moveDir = Vector2Int.up;
-        else if (AnyKeyPressed(_downKeys)) moveDir = Vector2Int.down;
-        else if (AnyKeyPressed(_leftKeys)) moveDir = Vector2Int.left;
-        else if (AnyKeyPressed(_rightKeys)) moveDir = Vector2Int.right;
+        if (AnyKeyPressed(_upKeys)) moveDir = Vector2Int.up; else if (AnyKeyPressed(_downKeys)) moveDir = Vector2Int.down;
+        else if (AnyKeyPressed(_leftKeys)) moveDir = Vector2Int.left; else if (AnyKeyPressed(_rightKeys)) moveDir = Vector2Int.right;
         if (moveDir != Vector2Int.zero) {
             Vector2Int targetPos = _pieceGridPos.Value + moveDir;
-            if (targetPos.x >= 0 && targetPos.x < 10 && targetPos.y >= 0 && targetPos.y < 10) {
-                _canInput = false; SubmitMoveServerRpc(targetPos);
-            }
+            if (targetPos.x >= 0 && targetPos.x < 10 && targetPos.y >= 0 && targetPos.y < 10) { _canInput = false; SubmitMoveServerRpc(targetPos); }
         }
     }
 
@@ -298,63 +274,39 @@ public class ErisMinigameManager : NetworkBehaviour
     [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void SubmitMoveServerRpc(Vector2Int gridPos) {
         Vector2Int currentPos = _pieceGridPos.Value;
-        if (Mathf.Abs(gridPos.x - currentPos.x) + Mathf.Abs(gridPos.y - currentPos.y) == 1 
-            && _currentStepIndex.Value + 1 < _syncedPath.Length 
-            && gridPos == _syncedPath[_currentStepIndex.Value + 1]) 
-        {
-            _currentStepIndex.Value++; 
-            _pieceGridPos.Value = gridPos;
-        } 
-        else 
-        {
-            WrongMoveEffectClientRpc(gridPos);
-            StartCoroutine(ResetServerDelayed());
-        }
+        if (Mathf.Abs(gridPos.x - currentPos.x) + Mathf.Abs(gridPos.y - currentPos.y) == 1 && _currentStepIndex.Value + 1 < _syncedPath.Length && gridPos == _syncedPath[_currentStepIndex.Value + 1]) 
+        { _currentStepIndex.Value++; _pieceGridPos.Value = gridPos; } 
+        else { WrongMoveEffectClientRpc(gridPos); StartCoroutine(ResetServerDelayed()); }
     }
 
-    private IEnumerator ResetServerDelayed() { 
-        yield return new WaitForSeconds(2.0f); 
-        _currentStepIndex.Value = 0; 
-        // Force update: gán giá trị rác trước khi gán lại giá trị cũ để ép OnValueChanged trên Client
-        _pieceGridPos.Value = new Vector2Int(-1, -1);
-        _pieceGridPos.Value = _syncedPath[0]; 
-    }
+    private IEnumerator ResetServerDelayed() { yield return new WaitForSeconds(2.0f); _currentStepIndex.Value = 0; _pieceGridPos.Value = new Vector2Int(-1, -1); yield return null; _pieceGridPos.Value = _syncedPath[0]; }
 
     [ClientRpc]
-    private void WrongMoveEffectClientRpc(Vector2Int wrongPos) { StartCoroutine(WrongMoveRippleEffect(wrongPos)); }
+    private void WrongMoveEffectClientRpc(Vector2Int wrongPos) { try { if (_gameFailureFeedback != null) _gameFailureFeedback.PlayFeedbacks(); } catch {} StartCoroutine(WrongMoveRippleEffect(wrongPos)); }
 
     private IEnumerator WrongMoveRippleEffect(Vector2Int wrongPos) {
-        _isReseting = true; _canInput = false;
+        _isReseting = true; _canInput = false; foreach (var t in _spawnedTiles) t.SetHighlight(false);
         AudioManager.Instance.PlaySFX(WrongMoveSFX);
-        ErisTile wrongTile = GetTileAt(wrongPos);
-        if (wrongTile != null) wrongTile.ApplyTemporaryRed();
-        yield return new WaitForSeconds(0.2f);
-        for (int dist = 1; dist < 20; dist++) {
+        for (int dist = 0; dist < 20; dist++) {
             bool found = false;
-            foreach (var tile in _spawnedTiles) {
-                int d = Mathf.Abs(tile.GridPos.x - wrongPos.x) + Mathf.Abs(tile.GridPos.y - wrongPos.y);
-                if (d == dist) { tile.ApplyTemporaryRed(); found = true; }
-            }
-            if (!found && dist > 10) break;
-            yield return new WaitForSeconds(0.04f);
+            foreach (var tile in _spawnedTiles) { if (Mathf.Abs(tile.GridPos.x - wrongPos.x) + Mathf.Abs(tile.GridPos.y - wrongPos.y) == dist) { tile.ApplyTemporaryRed(); found = true; } }
+            if (!found && dist > 10) break; yield return new WaitForSeconds(0.05f);
         }
-        yield return new WaitForSeconds(0.4f);
-        foreach (var t in _spawnedTiles) t.RestoreColor();
-        _isReseting = false;
+        yield return new WaitForSeconds(0.6f); foreach (var t in _spawnedTiles) t.RestoreColor();
+        if (_showDebugPath) ToggleDebugPath(true); _isReseting = false;
     }
 
-    private void UpdatePieceTarget(Vector2Int gridPos) {
+    private void UpdatePieceTargetSafe(Vector2Int gridPos) {
         if (_spawnedPieceInstance == null) _spawnedPieceInstance = GameObject.FindWithTag("ChessPiece");
-        Vector3 worldTarget = transform.TransformPoint(new Vector3(gridPos.x * 1.1f, 0.5f, gridPos.y * 1.1f));
-        if (_moveCoroutine != null) StopCoroutine(_moveCoroutine);
-        _moveCoroutine = StartCoroutine(SmoothMovePiece(worldTarget, gridPos));
-        ErisTile t = GetTileAt(gridPos);
-        if (t != null) t.SetColor(Color.green, true);
+        Vector3 worldTarget = transform.TransformPoint(new Vector3(gridPos.x * TILE_SPACING, 0.5f, gridPos.y * TILE_SPACING));
+        if (_moveCoroutine != null) StopCoroutine(_moveCoroutine); _moveCoroutine = StartCoroutine(SmoothMovePiece(worldTarget, gridPos));
+        ErisTile t = GetTileAt(gridPos); if (t != null) { try { t.SetColor(Color.green, true); } catch {} }
         if (IsServer && _currentStepIndex.Value == _syncedPath.Length - 1) StartCoroutine(EndGameDelayed());
     }
 
     private IEnumerator SmoothMovePiece(Vector3 target, Vector2Int gridPos) {
         if (_spawnedPieceInstance == null) yield break;
+        if (!_isReseting && _currentStepIndex.Value > 0 && _moveFeedback != null) { try { _moveFeedback.PlayFeedbacks(_spawnedPieceInstance.transform.position); } catch {} }
         float speed = (_isReseting || _currentStepIndex.Value == 0) ? 22f : 12f; 
         while (Vector3.Distance(_spawnedPieceInstance.transform.position, target) > 0.001f) {
             _spawnedPieceInstance.transform.position = Vector3.MoveTowards(_spawnedPieceInstance.transform.position, target, speed * Time.deltaTime);
@@ -362,71 +314,62 @@ public class ErisMinigameManager : NetworkBehaviour
             yield return null;
         }
         _spawnedPieceInstance.transform.position = target;
-        if (!_isReseting && _currentStepIndex.Value > 0) {
-            AudioManager.Instance.PlaySFX(CorrectMoveSFX, _spawnedPieceInstance.transform.position);
-        }
+        if (!_isReseting && _currentStepIndex.Value > 0) AudioManager.Instance.PlaySFX(CorrectMoveSFX, _spawnedPieceInstance.transform.position);
         HighlightPossibleMoves(gridPos);
-        yield return new WaitForSeconds(0.05f);
-        if (!_isReseting) _canInput = true;
+        yield return new WaitForSeconds(0.05f); if (!_isReseting) _canInput = true;
     }
 
     private void HighlightPossibleMoves(Vector2Int center) {
-        foreach (var t in _spawnedTiles) t.SetOutline(false);
+        foreach (var t in _spawnedTiles) t.SetHighlight(false);
         if (NetworkManager.Singleton.LocalClientId != _controllerId.Value || _isMemorizing.Value || _isReseting) return;
         Vector2Int[] neighbors = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
-        foreach (var dir in neighbors) { ErisTile t = GetTileAt(center + dir); if (t != null) t.SetOutline(true); }
+        foreach (var dir in neighbors) { ErisTile t = GetTileAt(center + dir); if (t != null) t.SetHighlight(true); }
     }
 
-    private IEnumerator EndGameDelayed() { 
-        yield return new WaitForSeconds(1f); 
-        SuccessEffectClientRpc(_pieceGridPos.Value); 
+    private IEnumerator EndGameDelayed() { yield return new WaitForSeconds(1f); SuccessEffectClientRpc(_pieceGridPos.Value); }
+
+    [ClientRpc]
+    private void SuccessEffectClientRpc(Vector2Int finalPos) { try { if (_gameSuccessFeedback != null) _gameSuccessFeedback.PlayFeedbacks(); } catch {} StartCoroutine(SuccessSequence(finalPos)); }
+
+    private IEnumerator SuccessSequence(Vector2Int finalPos) {
+        _canInput = false; AudioManager.Instance.PlaySFX(SuccessSFX);
+        for (int dist = 0; dist < 20; dist++) {
+            bool found = false;
+            foreach (var tile in _spawnedTiles) { if (Mathf.Abs(tile.GridPos.x - finalPos.x) + Mathf.Abs(tile.GridPos.y - finalPos.y) == dist) { tile.SetColor(Color.cyan, true); found = true; } }
+            if (!found && dist > 10) break; yield return new WaitForSeconds(0.04f);
+        }
+        yield return new WaitForSeconds(1.5f);
+        for (int sum = 0; sum <= 18; sum++) {
+            for (int x = 0; x <= sum; x++) {
+                int y = sum - x; ErisTile t = GetTileAt(new Vector2Int(x, y));
+                if (t != null) { try { t.PlayDespawnEffect(); } catch {} }
+            }
+            yield return new WaitForSeconds(0.04f); 
+        }
+        yield return new WaitForSeconds(1f); FinalizeMinigameClientRpc(); 
     }
 
     [ClientRpc]
-    private void SuccessEffectClientRpc(Vector2Int finalPos) {
-        StartCoroutine(SuccessRippleEffect(finalPos));
-    }
-
-    private IEnumerator SuccessRippleEffect(Vector2Int finalPos) {
-        _canInput = false;
-        AudioManager.Instance.PlaySFX(SuccessSFX);
-        // Ripple màu xanh Cyan lan tỏa từ vị trí đích
-        for (int dist = 0; dist < 20; dist++) {
-            bool found = false;
-            foreach (var tile in _spawnedTiles) {
-                int d = Mathf.Abs(tile.GridPos.x - finalPos.x) + Mathf.Abs(tile.GridPos.y - finalPos.y);
-                if (d == dist) { 
-                    tile.SetColor(Color.green, true); 
-                    found = true; 
-                }
-            }
-            if (!found && dist > 10) break;
-            yield return new WaitForSeconds(0.04f);
-        }
-        yield return new WaitForSeconds(0.8f);
-        
-        // Sau khi hiệu ứng chạy xong mới gọi logic kết thúc và dọn dẹp
-        FinalizeMinigame();
-    }
-
-    private void FinalizeMinigame() {
-        if (IsServer) {
-            _isGameActive.Value = false; 
-            _hasCompleted.Value = true;
-            if (_spawnedPieceInstance != null) _spawnedPieceInstance.GetComponent<NetworkObject>().Despawn();
-        }
-        
-        CleanupBoard();
+    private void FinalizeMinigameClientRpc() {
         var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
-        if (lp != null && lp.TryGetComponent<Rigidbody>(out var rb)) { rb.isKinematic = false; rb.linearVelocity = Vector3.zero; }
-        _lockedPositions.Clear(); _lockedRotations.Clear();
-        
+        if (lp != null) {
+            if (lp.TryGetComponent<Rigidbody>(out var rb)) { rb.isKinematic = false; }
+            if (NextAreaSpawn != null) lp.transform.position = NextAreaSpawn.position;
+            var vcams = FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
+            foreach (var vcam in vcams) { vcam.Target.TrackingTarget = lp.transform; vcam.Target.LookAtTarget = lp.transform; }
+        }
+        CleanupBoardImmediate(); _lockedPositions.Clear(); _lockedRotations.Clear();
+        if (BlackFogVFX != null) { BlackFogVFX.Stop(); BlackFogVFX.Clear(); }
         if (CameraManager.Instance != null) CameraManager.Instance.SwitchCamera(CameraPreset.ThirdPerson); 
-        
-        EventBus.RaiseGameResumed();
-        if (NextAreaSpawn != null && lp != null) lp.transform.position = NextAreaSpawn.position;
+        EventBus.RaiseGameResumed(); 
+        if (IsServer) { _isGameActive.Value = false; _hasCompleted.Value = true; if (_spawnedPieceInstance != null) _spawnedPieceInstance.GetComponent<NetworkObject>().Despawn(); }
     }
 
     private ErisTile GetTileAt(Vector2Int pos) => _spawnedTiles.Find(t => t.GridPos == pos);
-    private void CleanupBoard() { foreach (var t in _spawnedTiles) if (t != null) Destroy(t.gameObject); _spawnedTiles.Clear(); }
+    private void CleanupBoardImmediate() { 
+        if (_spawnCoroutine != null) StopCoroutine(_spawnCoroutine); if (_pathLoopCoroutine != null) StopCoroutine(_pathLoopCoroutine);
+        if (_idleWaveCoroutine != null) StopCoroutine(_idleWaveCoroutine);
+        foreach (var t in _spawnedTiles) if (t != null) Destroy(t.gameObject); _spawnedTiles.Clear(); 
+        ErisTile[] existingTiles = GetComponentsInChildren<ErisTile>(); foreach(var et in existingTiles) Destroy(et.gameObject);
+    }
 }
