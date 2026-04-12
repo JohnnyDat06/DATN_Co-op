@@ -1,6 +1,8 @@
 using UnityEngine;
 using Unity.Netcode;
+using Unity.Behavior;
 using System.Collections.Generic;
+using System;
 
 /// <summary>
 /// EnemyCombat — Hệ thống chiến đấu tổng hợp cho Enemy.
@@ -9,31 +11,28 @@ using System.Collections.Generic;
 /// </summary>
 public class EnemyCombat : NetworkBehaviour
 {
-    [Header("Detection & Strategy")]
-    [Tooltip("Trạng thái phát hiện mục tiêu")]
-    public bool IsDetected = false;
-    
-    [Tooltip("Mục tiêu hiện tại (Player)")]
+    [Header("Target Settings")]
+    [Tooltip("Mục tiêu hiện tại (Có thể gán thủ công hoặc qua AI Action)")]
     public GameObject Target;
+    
+    [Tooltip("Trạng thái phát hiện")]
+    public bool IsDetected = false;
 
-    [Tooltip("Tốc độ xoay khi combat")]
+    [Header("Blackboard References (Optional)")]
+    [Tooltip("Dùng để debug hoặc tự động lấy nếu gán trong Inspector")]
+    [SerializeReference] public BlackboardVariable<GameObject> BlackboardTarget;
+    [SerializeReference] public BlackboardVariable<bool> BlackboardIsDetected;
+
+    [Header("Combat Settings")]
     [SerializeField] private float _rotationSpeed = 360f;
 
-    [Header("Melee Settings (Cận chiến)")]
-    [Tooltip("Layer chứa Player")]
+    [Header("Melee Settings")]
     [SerializeField] private LayerMask _targetLayer;
-    
-    [Tooltip("Bán kính vùng quét của Hitbox")]
     [SerializeField] private float _radius = 1.0f;
-    
-    [Tooltip("Sát thương cận chiến")]
     [SerializeField] private int _damage = 20;
 
-    [Header("Ranged Settings (Bắn xa)")]
-    [Tooltip("Prefab của viên đạn")]
+    [Header("Ranged Settings")]
     [SerializeField] private GameObject _projectilePrefab;
-    
-    [Tooltip("Điểm bắn đạn")]
     [SerializeField] private Transform _firePoint;
 
     private float _activeTimer = 0f;
@@ -43,13 +42,14 @@ public class EnemyCombat : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        // 1. Luôn xoay mặt về phía Target nếu bị phát hiện
+        // Ưu tiên lấy từ Blackboard nếu Target đang null
+        UpdateTargetFromBlackboard();
+
         if (IsDetected && Target != null)
         {
-            RotateTowardsTarget();
+            RotateTowardsTarget(Target);
         }
 
-        // 2. Logic quét Hitbox cận chiến khi timer còn hiệu lực
         if (_activeTimer > 0)
         {
             _activeTimer -= Time.deltaTime;
@@ -57,10 +57,32 @@ public class EnemyCombat : NetworkBehaviour
         }
     }
 
-    private void RotateTowardsTarget()
+    private void UpdateTargetFromBlackboard()
     {
-        Vector3 direction = (Target.transform.position - transform.position).normalized;
-        direction.y = 0; // Chỉ xoay quanh trục Y
+        if (BlackboardTarget != null && BlackboardTarget.Value != null)
+        {
+            Target = BlackboardTarget.Value;
+        }
+        
+        if (BlackboardIsDetected != null)
+        {
+            IsDetected = BlackboardIsDetected.Value;
+        }
+    }
+
+    /// <summary>
+    /// Gán mục tiêu chiến đấu trực tiếp (Dùng bởi AI Action).
+    /// </summary>
+    public void SetCombatTarget(GameObject target, bool detected)
+    {
+        Target = target;
+        IsDetected = detected;
+    }
+
+    private void RotateTowardsTarget(GameObject target)
+    {
+        Vector3 direction = (target.transform.position - transform.position).normalized;
+        direction.y = 0;
 
         if (direction != Vector3.zero)
         {
@@ -69,11 +91,7 @@ public class EnemyCombat : NetworkBehaviour
         }
     }
 
-    #region Melee Logic
-    /// <summary>
-    /// Kích hoạt hitbox cận chiến trong một khoảng thời gian.
-    /// Gọi hàm này từ Animation Event.
-    /// </summary>
+    #region Melee
     public void TriggerAttack(float duration)
     {
         if (!IsServer) return;
@@ -87,35 +105,32 @@ public class EnemyCombat : NetworkBehaviour
         foreach (var hit in hits)
         {
             if (_hitHistory.Contains(hit)) continue;
-
             if (hit.TryGetComponent<IDamageable>(out var damageable))
             {
                 damageable.TakeDamage(_damage);
                 _hitHistory.Add(hit);
-                Debug.Log($"[EnemyCombat] Melee hit on {hit.name} for {_damage} damage.");
             }
         }
     }
     #endregion
 
-    #region Ranged Logic
-    /// <summary>
-    /// Bắn đạn tầm xa hướng về phía Target.
-    /// Gọi hàm này từ Animation Event.
-    /// </summary>
+    #region Ranged
     public void FireProjectile()
     {
-        // Kiểm tra an toàn để không làm hỏng quái chỉ có cận chiến
-        if (!IsServer || _projectilePrefab == null || Target == null) return;
+        if (!IsServer) return;
+
+        // Re-check target từ blackboard lần cuối trước khi bắn
+        UpdateTargetFromBlackboard();
+
+        Debug.Log($"[EnemyCombat] FireProjectile. Target: {(Target != null ? Target.name : "NULL")}");
+
+        if (_projectilePrefab == null || Target == null) return;
 
         Vector3 spawnPos = _firePoint != null ? _firePoint.position : transform.position + transform.forward + Vector3.up * 1.5f;
-        
-        // Bắn vào phần thân Player (Y + 1.5m)
         Vector3 targetPos = Target.transform.position + Vector3.up * 1.5f;
         Vector3 fireDir = (targetPos - spawnPos).normalized;
 
         GameObject projectile = Instantiate(_projectilePrefab, spawnPos, Quaternion.LookRotation(fireDir));
-        
         if (projectile.TryGetComponent<NetworkObject>(out var netObj))
         {
             netObj.Spawn();
@@ -128,11 +143,6 @@ public class EnemyCombat : NetworkBehaviour
         if (_activeTimer > 0)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, _radius);
-        }
-        else
-        {
-            Gizmos.color = new Color(1f, 1f, 0f, 0.1f);
             Gizmos.DrawWireSphere(transform.position, _radius);
         }
     }
