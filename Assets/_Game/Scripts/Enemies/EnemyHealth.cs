@@ -11,6 +11,7 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
 {
     [Header("Enemy Stats")]
     [SerializeField] protected int _maxHealth = 100;
+    public int MaxHealth => _maxHealth;
 
     // Biến đồng bộ qua mạng. Server có quyền Ghi, mọi Client đều tự động Đọc (Sync).
     public NetworkVariable<int> CurrentHealth = new NetworkVariable<int>(

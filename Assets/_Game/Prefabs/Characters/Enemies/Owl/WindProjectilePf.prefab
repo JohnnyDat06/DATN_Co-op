@@ -48087,7 +48087,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
   _speed: 15
-  _damage: 1
+  _damage: 15
   _lifeTime: 10
   _hitLayers:
     serializedVersion: 2

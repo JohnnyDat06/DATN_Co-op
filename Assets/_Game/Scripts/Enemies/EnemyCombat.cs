@@ -15,8 +15,12 @@ public class EnemyCombat : NetworkBehaviour
     [Tooltip("Mục tiêu hiện tại (Có thể gán thủ công hoặc qua AI Action)")]
     public GameObject Target;
     
-    [Tooltip("Trạng thái phát hiện")]
-    public bool IsDetected = false;
+    [Tooltip("Trạng thái phát hiện đồng bộ mạng")]
+    public NetworkVariable<bool> IsDetected = new NetworkVariable<bool>(
+        false, 
+        NetworkVariableReadPermission.Everyone, 
+        NetworkVariableWritePermission.Server
+    );
 
     [Header("Blackboard References (Optional)")]
     [Tooltip("Dùng để debug hoặc tự động lấy nếu gán trong Inspector")]
@@ -45,7 +49,7 @@ public class EnemyCombat : NetworkBehaviour
         // Ưu tiên lấy từ Blackboard nếu Target đang null
         UpdateTargetFromBlackboard();
 
-        if (IsDetected && Target != null)
+        if (IsDetected.Value && Target != null)
         {
             RotateTowardsTarget(Target);
         }
@@ -66,7 +70,12 @@ public class EnemyCombat : NetworkBehaviour
         
         if (BlackboardIsDetected != null)
         {
-            IsDetected = BlackboardIsDetected.Value;
+            // Chỉ gán khi giá trị thay đổi để tối ưu băng thông mạng và đảm bảo trigger OnValueChanged
+            if (IsDetected.Value != BlackboardIsDetected.Value)
+            {
+                IsDetected.Value = BlackboardIsDetected.Value;
+                Debug.Log($"[EnemyCombat] Detection state changed to: {IsDetected.Value}");
+            }
         }
     }
 
@@ -76,7 +85,7 @@ public class EnemyCombat : NetworkBehaviour
     public void SetCombatTarget(GameObject target, bool detected)
     {
         Target = target;
-        IsDetected = detected;
+        IsDetected.Value = detected;
     }
 
     private void RotateTowardsTarget(GameObject target)
