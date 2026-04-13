@@ -5,17 +5,19 @@ using UnityEngine;
 /// <summary>
 /// RespawnManager — Xử lý hồi sinh Player khi nhân vật chết và lưu điểm Checkpoint.
 /// Luôn luôn lắng nghe EventBus trên Singleton (để trên Scene Game).
+/// Đã được cập nhật để kế thừa NetworkBehaviour và sử dụng NetworkVariable để đồng bộ vị trí Checkpoint qua mạng.
 /// </summary>
-public class RespawnManager : MonoBehaviour
+public class RespawnManager : NetworkBehaviour
 {
     public static RespawnManager Instance { get; private set; }
 
     [Header("Settings")]
     [SerializeField] private float _respawnDelay = 3f;
 
-    // Lưu trữ tọa độ hồi sinh hiện tại
-    private Vector3 _currentHostSpawnPos;
-    private Vector3 _currentClientSpawnPos;
+    // Sử dụng NetworkVariable để đồng bộ tọa độ hồi sinh từ Server xuống tất cả Client
+    // Điều này đảm bảo khi Client hồi sinh, họ sẽ lấy đúng vị trí mới nhất mà Server đã lưu.
+    private readonly NetworkVariable<Vector3> _currentHostSpawnPos = new NetworkVariable<Vector3>(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<Vector3> _currentClientSpawnPos = new NetworkVariable<Vector3>(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     private void Awake()
     {
@@ -35,94 +37,105 @@ public class RespawnManager : MonoBehaviour
         Invoke(nameof(SetInitialSpawnPoints), 2f);
     }
 
-    private void OnEnable()
+    public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+        // Lắng nghe sự kiện từ EventBus
         EventBus.OnCheckpointReached += HandleCheckpointReached;
         EventBus.OnPlayerDied += HandlePlayerDied;
     }
 
-    private void OnDisable()
+    public override void OnNetworkDespawn()
     {
+        base.OnNetworkDespawn();
         EventBus.OnCheckpointReached -= HandleCheckpointReached;
         EventBus.OnPlayerDied -= HandlePlayerDied;
     }
 
     private void SetInitialSpawnPoints()
     {
-        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer) return;
+        if (!IsServer) return;
 
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             if (client.PlayerObject != null)
             {
                 if (client.ClientId == NetworkManager.ServerClientId)
-                    _currentHostSpawnPos = client.PlayerObject.transform.position;
+                    _currentHostSpawnPos.Value = client.PlayerObject.transform.position;
                 else
-                    _currentClientSpawnPos = client.PlayerObject.transform.position;
+                    _currentClientSpawnPos.Value = client.PlayerObject.transform.position;
             }
         }
-        Debug.Log($"[RespawnManager] Khởi tạo vị trí vạch xuất phát: Host ({_currentHostSpawnPos}) | Client ({_currentClientSpawnPos})");
+        Debug.Log($"[RespawnManager] Khởi tạo vị trí vạch xuất phát: Host ({_currentHostSpawnPos.Value}) | Client ({_currentClientSpawnPos.Value})");
     }
 
     /// <summary>
-    /// Lưu điểm checkpoint mới nhất. Hàm này được trigger trên tất cả các máy tính nhận được EventBus.
+    /// Lưu điểm checkpoint mới nhất. Chỉ Server mới thực hiện ghi vào NetworkVariable.
     /// </summary>
     private void HandleCheckpointReached(string checkpointId, Vector3 hostSpawnPos, Vector3 clientSpawnPos)
     {
-        _currentHostSpawnPos = hostSpawnPos;
-        _currentClientSpawnPos = clientSpawnPos;
-        Debug.Log($"<color=green>[RespawnManager] LƯU CHECKPOINT THÀNH CÔNG!</color> Trạm: {checkpointId} | Vị trí Host: {hostSpawnPos} | Vị trí Client: {clientSpawnPos}");
+        if (IsServer)
+        {
+            _currentHostSpawnPos.Value = hostSpawnPos;
+            _currentClientSpawnPos.Value = clientSpawnPos;
+            Debug.Log($"<color=green>[RespawnManager] SERVER LƯU CHECKPOINT THÀNH CÔNG!</color> Trạm: {checkpointId} | Vị trí Host: {hostSpawnPos} | Vị trí Client: {clientSpawnPos}");
+        }
     }
 
     /// <summary>
-    /// Khi nhân vật bị chết (HP = 0, rơi trúng gai, vực sâu), bắt đầu chạy routine delay để hồi sinh.
+    /// Khi nhân vật bị chết, bắt đầu chạy routine delay để hồi sinh.
+    /// Sự kiện này được bắn từ PlayerHealth qua ClientRpc nên sẽ chạy trên cả Host và Client.
     /// </summary>
     private void HandlePlayerDied(ulong clientId)
     {
-        Debug.Log($"<color=red>[RespawnManager] Phát hiện Player {clientId} đã chếttt! Bắt đầu đếm ngược {_respawnDelay} giây...</color>");
+        Debug.Log($"<color=red>[RespawnManager] Phát hiện Player {clientId} đã chết! Bắt đầu đếm ngược {_respawnDelay} giây...</color>");
         StartCoroutine(RespawnRoutine(clientId));
     }
 
     private IEnumerator RespawnRoutine(ulong clientId)
     {
-        // 1. Chờ vài giây để player kịp load xong hiệu ứng chết (chờ màn hình đen...)
+        // 1. Chờ vài giây để player kịp load xong hiệu ứng chết
         yield return new WaitForSeconds(_respawnDelay);
 
         Debug.Log($"[RespawnManager] Đã ngâm xác đủ thời gian! Đang lôi {clientId} dậy...");
 
-        // 2. NGO Kiểm tra quyền Owner. Phải là Owner thì mới tự đổi Transform của chính mình được.
+        // 2. NGO Kiểm tra quyền Owner.
         if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client))
         {
             NetworkObject netObj = client.PlayerObject;
             if (netObj != null)
             {
-                Debug.Log($"[RespawnManager] Tìm thấy Data mạng của thân xác {clientId}!");
-
-                // Chỉ ai là Owner của nhân vật đó thì mới được thực thi phần Move Position khôi phục này.
+                // CHỈ OWNER MỚI ĐƯỢC PHÉP DI CHUYỂN TRANSFORM CỦA CHÍNH MÌNH 
+                // (Vì dự án đang dùng ClientNetworkTransform hoặc logic tương tự)
                 if (netObj.IsOwner)
                 {
                     var fsm = netObj.GetComponent<PlayerStateMachine>();
                     var health = netObj.GetComponent<PlayerHealth>();
                     var rb = netObj.GetComponent<Rigidbody>();
 
-                    // Chọn tọa độ Spawn theo chủ Owner
+                    // Chọn tọa độ Spawn theo chủ Owner từ NetworkVariable đã đồng bộ
                     bool isHost = clientId == NetworkManager.ServerClientId;
-                    Vector3 spawnPos = isHost ? _currentHostSpawnPos : _currentClientSpawnPos;
+                    Vector3 spawnPos = isHost ? _currentHostSpawnPos.Value : _currentClientSpawnPos.Value;
 
-                    Debug.Log($"[RespawnManager] KẾT THÚC HỒI SINH! Đẩy {clientId} (IsHost: {isHost}) về x: {spawnPos.x}, y: {spawnPos.y}");
+                    Debug.Log($"[RespawnManager] HỒI SINH OWNER {clientId}! Đẩy về vị trí Checkpoint: {spawnPos}");
 
-                    // Tắt vật lý tạm -> Di chuyển tọa độ qua checkpoint -> Đặt lại
+                    // Tắt vật lý tạm -> Di chuyển tọa độ qua checkpoint
                     if (rb != null)
                     {
                         rb.linearVelocity = Vector3.zero;
+                        rb.angularVelocity = Vector3.zero;
                         rb.MovePosition(spawnPos);
-                        netObj.transform.position = spawnPos; // Khẳng định triệt để
+                        netObj.transform.position = spawnPos;
+                    }
+                    else
+                    {
+                        netObj.transform.position = spawnPos;
                     }
 
-                    // Phát Event
+                    // Phát Event cục bộ để Camera hoặc UI xử lý
                     EventBus.RaisePlayerRespawned(clientId, spawnPos);
                     
-                    // Trả HP và Chuyển State (Chuyển nhanh sang Respawning nếu có, rồi gạt cờ Idle)
+                    // Trả HP và Chuyển State
                     health.RestoreFullHealth();
                     fsm.TransitionTo(PlayerStateType.Respawning);
                     
@@ -131,17 +144,13 @@ public class RespawnManager : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log($"[RespawnManager] Bỏ qua vì máy này không phải là Owner của nhân vật {clientId} (Tránh giật giật kéo 2 bên).");
+                    Debug.Log($"[RespawnManager] Bỏ qua vì máy này không phải là Owner của nhân vật {clientId}.");
                 }
             }
             else
             {
-                Debug.LogError($"[RespawnManager] Lỗi: PlayerObject của Client {clientId} bị rỗng (null)!");
+                Debug.LogError($"[RespawnManager] Lỗi: PlayerObject của Client {clientId} bị rỗng!");
             }
-        }
-        else
-        {
-            Debug.LogError($"[RespawnManager] Lỗi nghiêm trọng: Không tìm thấy Client {clientId} trong mạng!");
         }
     }
 }

@@ -250,12 +250,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 47846406}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -2.0409172, y: -6.109878, z: 10.551955}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1377778327}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &48511000 stripped
 GameObject:
@@ -1283,9 +1283,6 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 2
   OnDeactivated:
-    m_PersistentCalls:
-      m_Calls: []
-  onInteracted:
     m_PersistentCalls:
       m_Calls: []
 --- !u!114 &605078933
@@ -2676,11 +2673,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
+  Target: {fileID: 0}
+  IsDetected: 0
+  BlackboardTarget:
+    rid: -2
+  BlackboardIsDetected:
+    rid: -2
+  _rotationSpeed: 360
   _targetLayer:
     serializedVersion: 2
     m_Bits: 8
   _radius: 2.5
   _damage: 20
+  _projectilePrefab: {fileID: 0}
+  _firePoint: {fileID: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
 --- !u!136 &1312711613
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -3102,6 +3113,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 47846408}
   - {fileID: 1883625962}
   - {fileID: 1695755986}
   - {fileID: 687557293}
@@ -10713,7 +10725,6 @@ SceneRoots:
   - {fileID: 8345070699951979544}
   - {fileID: 327984858}
   - {fileID: 9197959631254164896}
-  - {fileID: 47846408}
   - {fileID: 888994853}
   - {fileID: 99750983}
   - {fileID: 1181247423}
