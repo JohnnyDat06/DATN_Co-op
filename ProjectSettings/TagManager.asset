@@ -9,6 +9,7 @@ TagManager:
   - Tree
   - ChessPiece
   - FxTemporaire
+  - LobbyAnchor
   layers:
   - Default
   - TransparentFX

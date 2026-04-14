@@ -126,7 +126,8 @@ public class PlayerInputHandler : NetworkBehaviour
     {
         if (!IsSpawned || !IsOwner) return;
 
-        if (_inputLocked)
+        // CHẶN INPUT TRONG LOBBY
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby") || _inputLocked)
         {
             ClearAllInput();
             return;

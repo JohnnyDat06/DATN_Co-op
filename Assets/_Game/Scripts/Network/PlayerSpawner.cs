@@ -56,8 +56,13 @@ namespace Game.Network
                     // Tìm component NGOPlayerSync trên PlayerObject
                     if (client.PlayerObject.TryGetComponent<NGOPlayerSync>(out var playerSync))
                     {
-                        // Xác định vị trí spawn (theo thứ tự clientId hoặc số lượng player)
-                        int spawnIndex = processedClients.Count % spawnPoints.Length;
+                        // Xác định vị trí spawn dựa trên thứ tự kết nối hiện tại
+                        var clientIds = new List<ulong>(NetworkManager.Singleton.ConnectedClientsIds);
+                        int spawnIndex = clientIds.IndexOf(clientId);
+                        
+                        if (spawnIndex == -1) spawnIndex = 0; // Fallback
+                        spawnIndex = spawnIndex % spawnPoints.Length;
+                        
                         processedClients.Add(clientId);
 
                         if (spawnPoints.Length > spawnIndex)

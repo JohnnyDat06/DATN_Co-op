@@ -142,6 +142,18 @@ public class NGOPlayerSync : NetworkBehaviour
         // Script này dùng ClientNetworkTransform/ClientNetworkAnimator nên authority = owner.
         bool isAuthority = IsOwner;
 
+        // KHÔNG BẬT SIMULATION NẾU ĐANG TRONG LOBBY
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby"))
+        {
+            SetLocalSimulationEnabled(false);
+            if (_rigidbody != null)
+            {
+                _rigidbody.isKinematic = true;
+                _rigidbody.useGravity = false;
+            }
+            return;
+        }
+
         SetLocalSimulationEnabled(isAuthority);
 
         if (_rigidbody != null && _networkRigidbody == null)
