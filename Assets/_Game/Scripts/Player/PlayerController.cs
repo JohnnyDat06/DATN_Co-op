@@ -77,6 +77,14 @@ public class PlayerController : NetworkBehaviour
     {
         if (!IsSpawned) return;
 
+        // CHẶN DI CHUYỂN TRONG LOBBY
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby"))
+        {
+            _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+            _rb.angularVelocity = Vector3.zero;
+            return;
+        }
+
         // Guard: skip khi Dead/Respawning
         if (_fsm.CurrentStateType is PlayerStateType.Dead or PlayerStateType.Respawning) return;
 
