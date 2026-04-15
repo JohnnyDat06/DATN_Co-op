@@ -106,6 +106,11 @@ public class CameraManager : MonoBehaviour
         };
     }
 
+    public void SetTarget(Transform target)
+    {
+        SetPlayerTarget(target, target);
+    }
+
     public void SetPlayerTarget(Transform followTarget, Transform lookAtTarget)
     {
         if (followTarget == null)

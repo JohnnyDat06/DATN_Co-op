@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Threading.Tasks;
+using Unity.Netcode;
 
 namespace Networking.LobbySystem
 {
@@ -106,16 +107,88 @@ namespace Networking.LobbySystem
             Debug.Log($"Players in lobby: {lobby.Players.Count}");
         }
 
-        private void OnReadyClicked()
+        private void Update()
         {
-            // In a real co-op game, we'd sync this state. 
-            // For now, it's a placeholder button as requested.
-            Debug.Log("Player Ready!");
+            // Cập nhật chữ trên nút Ready dựa trên trạng thái thực tế
+            UpdateReadyButtonVisual();
         }
 
-        private async void OnStartClicked()
+        private void UpdateReadyButtonVisual()
         {
-            await LobbyManager.Instance.StartGame();
+            if (readyButton == null) return;
+
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null && NetworkManager.Singleton.LocalClient.PlayerObject != null)
+            {
+                var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<LobbyPlayerState>();
+                if (localPlayer != null)
+                {
+                    var btnText = readyButton.GetComponentInChildren<TextMeshProUGUI>();
+                    if (btnText != null)
+                    {
+                        btnText.text = localPlayer.IsReady.Value ? "UNREADY" : "READY";
+                    }
+                }
+            }
+        }
+
+        private void OnReadyClicked()
+        {
+            Debug.Log("[LobbyUI] Ready Button Clicked!");
+            
+            if (NetworkManager.Singleton == null) { Debug.LogError("NetworkManager is null!"); return; }
+            if (NetworkManager.Singleton.LocalClient == null) { Debug.LogError("LocalClient is null!"); return; }
+            
+            var playerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
+            if (playerObj == null)
+            {
+                Debug.LogError("Local PlayerObject is null! The Player Prefab might not be spawned yet. Check NetworkManager settings.");
+                return;
+            }
+
+            var localPlayer = playerObj.GetComponent<LobbyPlayerState>();
+            if (localPlayer != null)
+            {
+                Debug.Log($"[LobbyUI] Sending ToggleReadyServerRpc. Current State: {localPlayer.IsReady.Value}");
+                localPlayer.ToggleReadyServerRpc();
+            }
+            else
+            {
+                Debug.LogError("LobbyPlayerState component NOT FOUND on PlayerObject!");
+            }
+        }
+
+        private void OnStartClicked()
+        {
+            if (NetworkManager.Singleton.IsServer)
+            {
+                var players = GameObject.FindObjectsByType<LobbyPlayerState>(FindObjectsSortMode.None);
+                int connectedCount = NetworkManager.Singleton.ConnectedClients.Count;
+
+                Debug.Log($"[LobbyUI] Start attempt: Found {players.Length} player states, Netcode says {connectedCount} clients connected.");
+                
+                if (players.Length < connectedCount)
+                {
+                    Debug.LogWarning($"[LobbyUI] Wait! We have {connectedCount} clients but only {players.Length} LobbyPlayerState objects found in scene.");
+                    return;
+                }
+
+                bool allReady = true;
+                foreach (var p in players)
+                {
+                    Debug.Log($"[LobbyUI] Checking Player {p.OwnerClientId}: IsReady = {p.IsReady.Value}");
+                    if (!p.IsReady.Value) allReady = false;
+                }
+
+                if (allReady && players.Length > 0)
+                {
+                    Debug.Log("[LobbyUI] SUCCESS: All players ready. Loading scene LV1...");
+                    LobbyManager.Instance.StartGame("LV1");
+                }
+                else
+                {
+                    Debug.LogWarning($"[LobbyUI] CANNOT START: AllReady={allReady}, TotalPlayers={players.Length}");
+                }
+            }
         }
 
         private async void OnLeaveClicked()
@@ -124,3 +197,4 @@ namespace Networking.LobbySystem
         }
     }
 }
+

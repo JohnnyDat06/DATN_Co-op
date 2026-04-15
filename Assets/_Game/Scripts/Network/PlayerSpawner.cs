@@ -22,10 +22,10 @@ namespace Game.Network
 
             NetworkManager.Singleton.OnClientConnectedCallback += HandleClientConnected;
             
-            // Xử lý cho Host nếu họ đã spawn
-            if (IsHost)
+            // Xử lý Host và toàn bộ Client hiện có nếu PlayerSpawner này được tạo ra sau khi họ kết nối (ví dụ khi chuyển cảnh)
+            foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
             {
-                HandleClientConnected(NetworkManager.ServerClientId);
+                HandleClientConnected(clientId);
             }
         }
 

@@ -5060,6 +5060,7 @@ GameObject:
   - component: {fileID: 4393955296312547137}
   - component: {fileID: 5979990605293939981}
   - component: {fileID: 4810457772248123075}
+  - component: {fileID: -5930872721099634623}
   m_Layer: 3
   m_Name: Player_Host
   m_TagString: Player
@@ -5579,6 +5580,34 @@ MonoBehaviour:
   _interactableLayerMask:
     serializedVersion: 2
     m_Bits: 640
+--- !u!114 &-5930872721099634623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6331376093302597881}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b03b78f8453bd3b4c8b1a8e694aeffa5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  CharacterIndex:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  IsReady:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 0
+  LobbySlotIndex:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: -1
 --- !u!1 &6346669034698438194
 GameObject:
   m_ObjectHideFlags: 0

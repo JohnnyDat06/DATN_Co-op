@@ -79,7 +79,11 @@ namespace Networking.LobbySystem
             } catch (Exception e) { Debug.LogError(e.Message); }
         }
 
-        public async Task StartGame() { Debug.Log("Game Starting..."); }
+        public void StartGame(string sceneName) {
+            if (NetworkManager.Singleton.IsServer) {
+                NetworkManager.Singleton.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+            }
+        }
 
         public async Task QuickJoinLobby() {
             try {
