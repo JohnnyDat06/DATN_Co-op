@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// Gắn trên Player prefab. Thiết lập camera cho local player khi spawn.
@@ -15,20 +16,28 @@ public class PlayerCameraInitializer : NetworkBehaviour
         base.OnNetworkSpawn();
 
         // Chỉ xử lý nếu đây là local player (máy khách sở hữu player này)
-        if (!IsOwner)
+        if (IsOwner)
         {
-            return;
+            StartCoroutine(InitializeCameraRoutine());
         }
-
-        InitializeCamera();
     }
 
-    private void InitializeCamera()
+    private IEnumerator InitializeCameraRoutine()
     {
+        // Chờ tối đa 5 giây để CameraManager xuất hiện (tăng từ 2s)
+        float timeout = 5.0f;
+        while (CameraManager.Instance == null && timeout > 0)
+        {
+            yield return new WaitForSeconds(0.1f);
+            timeout -= 0.1f;
+        }
+
         if (CameraManager.Instance == null)
         {
-            Debug.LogError("[PlayerCameraInitializer] CameraManager.Instance không tìm thấy trong scene!");
-            return;
+            // Kiểm tra xem có đối tượng nào trong scene có script này không nhưng chưa set Instance
+            var foundManager = Object.FindFirstObjectByType<CameraManager>();
+            Debug.LogError($"[PlayerCameraInitializer] Không tìm thấy CameraManager Instance! Found in scene: {foundManager != null}");
+            yield break;
         }
 
         // Tự động tìm LookTarget nếu chưa được gán
@@ -44,10 +53,10 @@ public class PlayerCameraInitializer : NetworkBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-#if UNITY_EDITOR || DEBUG_BUILD
         Debug.Log($"[PlayerCameraInitializer] Camera targets initialized for {(IsHost ? "Host" : "Client")} player.");
-#endif
     }
+
+    private void InitializeCamera() { }
 
     private Transform FindLookTargetRecursive(Transform parent)
     {

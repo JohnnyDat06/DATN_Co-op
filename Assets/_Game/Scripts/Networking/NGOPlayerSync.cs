@@ -56,15 +56,33 @@ public class NGOPlayerSync : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        // Lắng nghe sự kiện chuyển cảnh
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+        {
+            NetworkManager.Singleton.SceneManager.OnLoadComplete += HandleSceneLoaded;
+        }
+
+        // Cập nhật lại trạng thái cảnh trước khi áp dụng logic
         ApplyAuthorityState();
         _hasAppliedSpawnState = true;
+        Debug.Log($"[NGOPlayerSync] Spawned in scene: {UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}. IsOwner: {IsOwner}");
     }
 
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+        {
+            NetworkManager.Singleton.SceneManager.OnLoadComplete -= HandleSceneLoaded;
+        }
         _hasAppliedSpawnState = false;
         SetLocalSimulationEnabled(false);
+    }
+
+    private void HandleSceneLoaded(ulong clientId, string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode)
+    {
+        // Khi bất kỳ ai load xong cảnh mới, ta kiểm tra lại authority state của mình
+        ApplyAuthorityState();
     }
 
     public override void OnGainedOwnership()

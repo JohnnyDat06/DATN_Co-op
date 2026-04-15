@@ -2,6 +2,7 @@ using Unity.Netcode;
 using UnityEngine;
 using System.Collections;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Networking.LobbySystem
 {
@@ -9,6 +10,9 @@ namespace Networking.LobbySystem
     public class LobbyPlayerState : NetworkBehaviour
     {
         public NetworkVariable<int> CharacterIndex = new NetworkVariable<int>(0, 
+            NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        public NetworkVariable<bool> IsReady = new NetworkVariable<bool>(false,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         // Server sẽ chỉ định Slot đứng (0, 1, 2...) để tránh việc Client tự tính toán sai dẫn đến chụm vào nhau
@@ -22,6 +26,12 @@ namespace Networking.LobbySystem
         {
             _isInLobby = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby");
             
+            // Lắng nghe sự kiện chuyển cảnh để cập nhật trạng thái
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+            {
+                NetworkManager.Singleton.SceneManager.OnLoadComplete += HandleLoadComplete;
+            }
+
             if (_isInLobby) {
                 Debug.Log($"[LobbySlot] Player {OwnerClientId} joined lobby. IsServer: {IsServer}");
                 DisableMovementPermanently();
@@ -32,8 +42,13 @@ namespace Networking.LobbySystem
                     AssignSlotServerRpc();
                 }
             }
+            else {
+                Debug.Log($"[LobbySlot] Player {OwnerClientId} spawned in Game. Enabling movement.");
+                EnableMovement();
+            }
 
             CharacterIndex.OnValueChanged += (oldVal, newVal) => ApplyVisual(newVal);
+            IsReady.OnValueChanged += (oldVal, newVal) => Debug.Log($"Player {OwnerClientId} Ready: {newVal}");
             
             // Lắng nghe thay đổi slot để cập nhật vị trí ngay lập tức
             LobbySlotIndex.OnValueChanged += (oldVal, newVal) => {
@@ -46,6 +61,78 @@ namespace Networking.LobbySystem
             {
                 SetCharacterServerRpc(_localSelectedCharacterIndex);
             }
+        }
+
+        [ServerRpc]
+        public void ToggleReadyServerRpc()
+        {
+            IsReady.Value = !IsReady.Value;
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+            {
+                NetworkManager.Singleton.SceneManager.OnLoadComplete -= HandleLoadComplete;
+            }
+        }
+
+        private void HandleLoadComplete(ulong clientId, string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode)
+        {
+            _isInLobby = sceneName.Contains("Lobby");
+            if (!_isInLobby)
+            {
+                Debug.Log($"[LobbySlot] Scene loaded: {sceneName}. Enabling movement for Player {OwnerClientId}");
+                EnableMovement();
+                
+                // Ép Camera bám theo lần nữa nếu cần
+                if (IsOwner) {
+                    var initializer = GetComponent<PlayerCameraInitializer>();
+                    if (initializer != null) {
+                        initializer.StopAllCoroutines();
+                        initializer.StartCoroutine("InitializeCameraRoutine");
+                    }
+                }
+            }
+        }
+
+        private void EnableMovement()
+        {
+            // Bật lại các script đã bị tắt ở Lobby
+            if (TryGetComponent<NGOPlayerSync>(out var sync)) sync.enabled = true;
+            if (TryGetComponent<ClientPlayerMove>(out var move)) move.enabled = true;
+            if (TryGetComponent<UnityEngine.InputSystem.PlayerInput>(out var input)) input.enabled = true;
+
+            // Unlock InputHandler nếu có
+            if (TryGetComponent<PlayerInputHandler>(out var inputHandler)) {
+                inputHandler.enabled = true;
+                inputHandler.UnlockAllInput();
+            }
+
+            // Nếu có Animator, đảm bảo nó hoạt động
+            if (TryGetComponent<Animator>(out var anim)) anim.enabled = true;
+
+            // Bật lại các StateMachine/Controller/Model
+            if (TryGetComponent<PlayerController>(out var pc)) pc.enabled = true;
+            if (TryGetComponent<PlayerStateMachine>(out var psm)) psm.enabled = true;
+            
+            // StarterAssets support
+            var taController = GetComponent("ThirdPersonController");
+            if (taController != null && taController is Behaviour b1) b1.enabled = true;
+
+            var saInputs = GetComponent("StarterAssetsInputs");
+            if (saInputs != null && saInputs is Behaviour b2) b2.enabled = true;
+
+            var playerModel = GetComponent("PlayerModel");
+            if (playerModel != null && playerModel is Behaviour b3) b3.enabled = true;
+
+            if (TryGetComponent<Rigidbody>(out var rb)) {
+                rb.useGravity = true;
+                rb.isKinematic = false;
+                rb.interpolation = RigidbodyInterpolation.Interpolate;
+            }
+
+            Debug.Log($"[LobbySlot] ALL movement components enabled for Player {OwnerClientId}");
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -76,19 +163,32 @@ namespace Networking.LobbySystem
         {
             // Tắt tất cả các script có thể can thiệp vào nhân vật
             if (TryGetComponent<NGOPlayerSync>(out var sync)) sync.enabled = false;
-            if (TryGetComponent<PlayerController>(out var controller)) controller.enabled = false;
-            if (TryGetComponent<PlayerInputHandler>(out var input)) {
-                input.LockAllInput();
-                input.enabled = false;
-            }
-            if (TryGetComponent<PlayerStateMachine>(out var fsm)) fsm.enabled = false;
-            if (TryGetComponent<PlayerAnimator>(out var playerAnim)) playerAnim.enabled = false;
             
-            // TẮT PLAYER MODEL - Script đang gây xung đột theo log Console
-            var playerModel = GetComponent("PlayerModel");
-            if (playerModel != null && playerModel is Behaviour b) {
-                b.enabled = false;
+            // Tìm và tắt script ClientPlayerMove
+            if (TryGetComponent<ClientPlayerMove>(out var move)) move.enabled = false;
+
+            // Tìm và tắt PlayerInput
+            if (TryGetComponent<UnityEngine.InputSystem.PlayerInput>(out var input)) input.enabled = false;
+
+            // Lock InputHandler nếu có
+            if (TryGetComponent<PlayerInputHandler>(out var inputHandler)) {
+                inputHandler.LockAllInput();
+                inputHandler.enabled = false;
             }
+
+            // Tắt các script khác
+            if (TryGetComponent<PlayerController>(out var pc)) pc.enabled = false;
+            if (TryGetComponent<PlayerStateMachine>(out var psm)) psm.enabled = false;
+
+            // StarterAssets support
+            var taController = GetComponent("ThirdPersonController");
+            if (taController != null && taController is Behaviour b1) b1.enabled = false;
+
+            var saInputs = GetComponent("StarterAssetsInputs");
+            if (saInputs != null && saInputs is Behaviour b2) b2.enabled = false;
+
+            var playerModel = GetComponent("PlayerModel");
+            if (playerModel != null && playerModel is Behaviour b3) b3.enabled = false;
 
             if (TryGetComponent<Rigidbody>(out var rb)) {
                 rb.useGravity = false;
