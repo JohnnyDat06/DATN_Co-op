@@ -34,6 +34,10 @@ public class InteractPromptHUD : MonoBehaviour
     [SerializeField] private float _fontSizeNormal = 18f;
     [SerializeField] private float _fontSizeLarge  = 24f;
 
+    [Header("Colors")]
+    [SerializeField] private Color _hostColor = Color.cyan;
+    [SerializeField] private Color _clientColor = Color.red;
+
     // ─── Runtime ─────────────────────────────────────────────────────────────
 
     private IInteractable _currentTarget;
@@ -90,11 +94,12 @@ public class InteractPromptHUD : MonoBehaviour
     private void HandleFound(IInteractable target)
     {
         _currentTarget          = target;
-        _currentTargetTransform = (target as UnityEngine.Component)?.transform;
+        _currentTargetTransform = target.GetPromptTransform();
 
         if (_actionLabel != null)
             _actionLabel.text = target.InteractionPrompt;
 
+        RefreshColor();
         SetVisible(true);
     }
 
@@ -109,6 +114,8 @@ public class InteractPromptHUD : MonoBehaviour
 
     private void TrackWorldPosition()
     {
+        if (_currentTargetTransform == null) return;
+        
         // Chuyển tọa độ World 3D (trên đầu Interactable) → tọa độ Viewport → RectTransform
         Vector3 worldPos   = _currentTargetTransform.position + _worldOffset;
         Vector3 screenPos  = _mainCamera.WorldToScreenPoint(worldPos);
@@ -178,5 +185,15 @@ public class InteractPromptHUD : MonoBehaviour
 
         if (_keyLabel    != null) _keyLabel.fontSize    = size;
         if (_actionLabel != null) _actionLabel.fontSize = size;
+    }
+
+    private void RefreshColor()
+    {
+        bool isHost = Unity.Netcode.NetworkManager.Singleton != null && 
+                     Unity.Netcode.NetworkManager.Singleton.IsHost;
+        Color targetColor = isHost ? _hostColor : _clientColor;
+
+        if (_keyLabel != null) _keyLabel.color = targetColor;
+        if (_actionLabel != null) _actionLabel.color = targetColor;
     }
 }
