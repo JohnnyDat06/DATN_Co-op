@@ -1,13 +1,12 @@
-using Unity.Netcode;
 using UnityEngine;
 using RayFire;
+using Unity.Netcode;
 
 /// <summary>
-/// RockProjectile — Phiên bản tối ưu: Không dùng vật lý thực (Trigger), di chuyển bằng code.
-/// Đảm bảo: Không mất tốc độ, không xuyên tường, bay xuyên nhau và đồng bộ tuyệt đối.
+/// RockProjectile — Phiên bản đồng bộ thủ công: Không dùng NetworkObject để tránh lỗi Prefab registration.
+/// Tự đồng bộ vị trí dựa trên ServerTime.
 /// </summary>
-[RequireComponent(typeof(NetworkObject))]
-public class RockProjectile : NetworkBehaviour
+public class RockProjectile : MonoBehaviour
 {
     [SerializeField] private SORockConfig _config;
     [SerializeField] private RayfireRigid _rayfireRigid;
@@ -17,12 +16,9 @@ public class RockProjectile : NetworkBehaviour
     private Collider _collider;
     private Rigidbody _rb;
 
-    // Đồng bộ vận tốc từ Server xuống Client
-    private NetworkVariable<Vector3> _syncVelocity = new NetworkVariable<Vector3>(
-        Vector3.zero, 
-        NetworkVariableReadPermission.Everyone, 
-        NetworkVariableWritePermission.Server
-    );
+    private double _spawnServerTime;
+    private Vector3 _spawnPosition;
+    private bool _isInitialized = false;
 
     private void Awake()
     {
@@ -32,73 +28,53 @@ public class RockProjectile : NetworkBehaviour
         
         if (_rayfireRigid == null) _rayfireRigid = GetComponentInChildren<RayfireRigid>();
 
-        // THIẾT LẬP QUAN TRỌNG:
-        // Biến viên đá thành Trigger để không bị mất đà khi chạm Player và có thể bay xuyên nhau.
         if (_rb != null) _rb.isKinematic = true;
         if (_collider != null) _collider.isTrigger = true;
     }
 
-    public override void OnNetworkSpawn()
-    {
-        if (_syncVelocity.Value != Vector3.zero)
-        {
-            _currentVelocity = _syncVelocity.Value;
-        }
-
-        _syncVelocity.OnValueChanged += (oldVal, newVal) => {
-            _currentVelocity = newVal;
-        };
-
-        if (IsServer)
-        {
-            Invoke(nameof(DespawnRock), 10f);
-        }
-    }
-
     /// <summary>
-    /// Gọi từ Server (RockShooter)
+    /// Khởi tạo viên đá với các thông số đồng bộ
     /// </summary>
-    public void Launch(Vector3 velocity)
+    public void Initialize(Vector3 velocity, double spawnTime, Vector3 spawnPos)
     {
-        if (!IsServer) return;
-        _syncVelocity.Value = velocity;
         _currentVelocity = velocity;
+        _spawnServerTime = spawnTime;
+        _spawnPosition = spawnPos;
+        transform.position = spawnPos;
+        _isInitialized = true;
+
+        // Tự hủy sau 10s nếu không va chạm
+        Destroy(gameObject, 10f);
     }
 
     private void Update()
     {
-        if (_hasCollided || _currentVelocity == Vector3.zero) return;
+        if (!_isInitialized || _hasCollided || _currentVelocity == Vector3.zero) return;
 
-        // 1. Di chuyển viên đá theo vận tốc đồng bộ
+        // Đồng bộ vị trí dựa trên thời gian thực của Server
+        double timePassed = NetworkManager.Singleton.ServerTime.Time - _spawnServerTime;
+        Vector3 targetPos = _spawnPosition + _currentVelocity * (float)timePassed;
+
+        // Di chuyển mượt mà tới vị trí mục tiêu
         float step = _currentVelocity.magnitude * Time.deltaTime;
-        transform.position += _currentVelocity * Time.deltaTime;
+        transform.position = Vector3.MoveTowards(transform.position, targetPos, step * 1.1f);
 
-        // 2. RAYCAST KIỂM TRA TƯỜNG (ENVIRONMENT):
-        // Đây là cách duy nhất để đảm bảo đá KHÔNG BAO GIỜ xuyên qua tường dù bay nhanh.
-        // Kiểm tra một đoạn ngắn phía trước hướng bay.
+        // Kiểm tra va chạm tường (Cả Server và Client đều tự kiểm tra để tối ưu hình ảnh)
         int envLayerMask = LayerMask.GetMask(Constants.Layers.ENVIRONMENT);
         if (Physics.Raycast(transform.position, _currentVelocity.normalized, out RaycastHit hit, step + 0.5f, envLayerMask))
         {
-            if (IsServer)
-            {
-                _hasCollided = true;
-                ShatterClientRpc(hit.point);
-                CancelInvoke(nameof(DespawnRock));
-                Invoke(nameof(DespawnRock), 0.1f);
-            }
+            ShatterLocal(hit.point);
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Chỉ Server xử lý gây damage và đẩy player
-        if (!IsServer || _hasCollided) return;
+        // CHỈ SERVER mới xử lý gây damage để tránh cheat hoặc lỗi lặp damage
+        if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsServer || _hasCollided) return;
 
-        // Nếu chạm Player: Gây damage + Đẩy mạnh
         if (other.CompareTag(Constants.Tags.PLAYER))
         {
             HandlePlayerCollision(other.gameObject);
-            // Vì là Trigger nên đá KHÔNG bị dừng lại, tiếp tục bay xuyên qua player với vận tốc cũ.
         }
     }
 
@@ -111,18 +87,15 @@ public class RockProjectile : NetworkBehaviour
         
         if (playerController != null)
         {
-            // Lực đẩy cực mạnh: Hướng bay của đá + một chút hướng lên trên
             Vector3 pushDir = _currentVelocity.normalized;
             pushDir.y = 0.2f; 
-
-            // Đẩy Player bay xa (KnockbackForce nên để giá trị lớn trong Config, ví dụ 20-30)
             playerController.ApplyKnockbackClientRpc(pushDir * _config.KnockbackForce);
         }
     }
 
-    [ClientRpc]
-    private void ShatterClientRpc(Vector3 shatterPos)
+    public void ShatterLocal(Vector3 shatterPos)
     {
+        if (_hasCollided) return;
         _hasCollided = true;
         transform.position = shatterPos;
 
@@ -142,6 +115,9 @@ public class RockProjectile : NetworkBehaviour
             _rayfireRigid.Demolish();
             Invoke(nameof(ForceBlackFragments), 0.05f);
         }
+        
+        // Xóa object sau khi vỡ (Rayfire sẽ tạo ra các mảnh vụn riêng)
+        Destroy(gameObject, 0.1f);
     }
 
     private void ForceBlackFragments()
@@ -154,10 +130,5 @@ public class RockProjectile : NetworkBehaviour
             for (int i = 0; i < blackmats.Length; i++) blackmats[i] = _config.FragmentMaterial;
             r.materials = blackmats;
         }
-    }
-
-    private void DespawnRock()
-    {
-        if (IsServer && NetworkObject.IsSpawned) NetworkObject.Despawn();
     }
 }

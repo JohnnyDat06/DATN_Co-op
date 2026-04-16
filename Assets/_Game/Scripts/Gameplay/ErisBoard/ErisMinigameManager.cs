@@ -48,7 +48,8 @@ public class ErisMinigameManager : NetworkBehaviour
     private NetworkVariable<ulong> _observerId = new NetworkVariable<ulong>();
     private NetworkVariable<int> _currentStepIndex = new NetworkVariable<int>(0);
     private NetworkVariable<Vector2Int> _pieceGridPos = new NetworkVariable<Vector2Int>(new Vector2Int(-1,-1));
-
+    
+    // Xóa NetworkObjectReference vì ta sẽ dùng Object cục bộ để đảm bảo 100% hiển thị
     private GameObject _spawnedPieceInstance;
     private Dictionary<ulong, Vector3> _lockedPositions = new Dictionary<ulong, Vector3>();
     private Dictionary<ulong, Quaternion> _lockedRotations = new Dictionary<ulong, Quaternion>();
@@ -71,7 +72,14 @@ public class ErisMinigameManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        _pieceGridPos.OnValueChanged += (oldVal, newVal) => { if (newVal.x != -1) UpdatePieceTargetSafe(newVal); };
+        _pieceGridPos.OnValueChanged += (oldVal, newVal) => { 
+            if (newVal.x != -1) {
+                // Đảm bảo piece đã tồn tại trước khi update target
+                if (_spawnedPieceInstance == null) SpawnChessPieceLocal();
+                UpdatePieceTargetSafe(newVal); 
+            }
+        };
+        
         _isMemorizing.OnValueChanged += (oldVal, newVal) => { 
             if (!newVal) {
                 StopPathLoop();
@@ -94,7 +102,8 @@ public class ErisMinigameManager : NetworkBehaviour
         _isGameActive.Value = true; _isMemorizing.Value = true; _controllerId.Value = triggerPlayerId; _hasCompleted.Value = false;
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList) { if (client.ClientId != triggerPlayerId) { _observerId.Value = client.ClientId; break; } }
         _syncedPath = GeneratePathArray(); _pieceGridPos.Value = _syncedPath[0]; _currentStepIndex.Value = 0;
-        SpawnChessPieceServer(); SetupBoardClientRpc(_controllerId.Value, _observerId.Value, _syncedPath);
+        
+        SetupBoardClientRpc(_controllerId.Value, _observerId.Value, _syncedPath);
     }
 
     private Vector2Int[] GeneratePathArray()
@@ -133,6 +142,10 @@ public class ErisMinigameManager : NetworkBehaviour
         _syncedPath = path; CleanupBoardImmediate(); 
         try { if (_gameStartFeedback != null) _gameStartFeedback.PlayFeedbacks(); } catch {}
         _spawnCoroutine = StartCoroutine(SpawnTilesWaveDiagonalSafe());
+        
+        // Spawn ChessPiece cục bộ trên mỗi máy
+        SpawnChessPieceLocal();
+
         var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
         if (lp != null) {
             if(lp.TryGetComponent<Rigidbody>(out var rb)) { if (!rb.isKinematic) rb.linearVelocity = Vector3.zero; rb.isKinematic = true; }
@@ -168,7 +181,10 @@ public class ErisMinigameManager : NetworkBehaviour
             }
             yield return new WaitForSeconds(0.04f); 
         }
-        _canInput = true; UpdatePieceTargetSafe(_pieceGridPos.Value);
+        _canInput = true; 
+        
+        // Cập nhật vị trí Piece một lần nữa sau khi tiles đã sẵn sàng
+        if (_pieceGridPos.Value.x != -1) UpdatePieceTargetSafe(_pieceGridPos.Value);
     }
 
     private IEnumerator IdleWaveRoutine() {
@@ -234,13 +250,21 @@ public class ErisMinigameManager : NetworkBehaviour
         }
     }
 
-    private void SpawnChessPieceServer() {
-        Vector3 worldStart = transform.TransformPoint(new Vector3(_pieceGridPos.Value.x * TILE_SPACING, 0.5f, _pieceGridPos.Value.y * TILE_SPACING));
-        _spawnedPieceInstance = Instantiate(ChessPiecePrefab, worldStart, transform.rotation); _spawnedPieceInstance.GetComponent<NetworkObject>().Spawn();
+    private void SpawnChessPieceLocal() {
+        if (_spawnedPieceInstance != null) return;
+        
+        Vector2Int gridPos = _pieceGridPos.Value.x != -1 ? _pieceGridPos.Value : new Vector2Int(0,0);
+        Vector3 worldStart = transform.TransformPoint(new Vector3(gridPos.x * TILE_SPACING, 0.5f, gridPos.y * TILE_SPACING));
+        
+        // KHÔNG gán 'transform' làm cha ở đây vì Prefab có thể chứa NetworkObject, gây crash nếu gán làm con của một NetworkObject khác mà không Spawn
+        _spawnedPieceInstance = Instantiate(ChessPiecePrefab, worldStart, transform.rotation); 
+        
+        Debug.Log($"[ErisMinigameManager] ChessPiece spawned LOCALLY for client {NetworkManager.Singleton.LocalClientId}");
     }
 
     private void Update() {
         if (!IsSpawned || !_isGameActive.Value) return;
+
         var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
         if (lp != null) {
             if(_lockedPositions.TryGetValue(NetworkManager.Singleton.LocalClientId, out Vector3 lockPos)) lp.transform.position = lockPos;
@@ -297,23 +321,39 @@ public class ErisMinigameManager : NetworkBehaviour
     }
 
     private void UpdatePieceTargetSafe(Vector2Int gridPos) {
-        if (_spawnedPieceInstance == null) _spawnedPieceInstance = GameObject.FindWithTag("ChessPiece");
+        if (gridPos.x == -1) return;
+        
+        // Đảm bảo piece đã tồn tại
+        if (_spawnedPieceInstance == null) SpawnChessPieceLocal();
+        
         Vector3 worldTarget = transform.TransformPoint(new Vector3(gridPos.x * TILE_SPACING, 0.5f, gridPos.y * TILE_SPACING));
-        if (_moveCoroutine != null) StopCoroutine(_moveCoroutine); _moveCoroutine = StartCoroutine(SmoothMovePiece(worldTarget, gridPos));
-        ErisTile t = GetTileAt(gridPos); if (t != null) { try { t.SetColor(Color.green, true); } catch {} }
+        if (_moveCoroutine != null) StopCoroutine(_moveCoroutine); 
+        _moveCoroutine = StartCoroutine(SmoothMovePiece(worldTarget, gridPos));
+        
+        ErisTile t = GetTileAt(gridPos); 
+        if (t != null) { try { t.SetColor(Color.green, true); } catch {} }
         if (IsServer && _currentStepIndex.Value == _syncedPath.Length - 1) StartCoroutine(EndGameDelayed());
     }
 
     private IEnumerator SmoothMovePiece(Vector3 target, Vector2Int gridPos) {
         if (_spawnedPieceInstance == null) yield break;
+
+        // SNAP ngay lập tức nếu là vị trí khởi đầu
+        if (_currentStepIndex.Value == 0 || _isReseting) {
+            _spawnedPieceInstance.transform.position = target;
+            _spawnedPieceInstance.transform.rotation = transform.rotation;
+        }
+
         if (!_isReseting && _currentStepIndex.Value > 0 && _moveFeedback != null) { try { _moveFeedback.PlayFeedbacks(_spawnedPieceInstance.transform.position); } catch {} }
-        float speed = (_isReseting || _currentStepIndex.Value == 0) ? 22f : 12f; 
-        while (Vector3.Distance(_spawnedPieceInstance.transform.position, target) > 0.001f) {
+        
+        float speed = (_isReseting || _currentStepIndex.Value == 0) ? 50f : 12f; 
+        while (Vector3.Distance(_spawnedPieceInstance.transform.position, target) > 0.01f) {
+            if (_spawnedPieceInstance == null) yield break;
             _spawnedPieceInstance.transform.position = Vector3.MoveTowards(_spawnedPieceInstance.transform.position, target, speed * Time.deltaTime);
             _spawnedPieceInstance.transform.rotation = Quaternion.Lerp(_spawnedPieceInstance.transform.rotation, transform.rotation, Time.deltaTime * 10f);
             yield return null;
         }
-        _spawnedPieceInstance.transform.position = target;
+        if (_spawnedPieceInstance != null) _spawnedPieceInstance.transform.position = target;
         if (!_isReseting && _currentStepIndex.Value > 0) AudioManager.Instance.PlaySFX(CorrectMoveSFX, _spawnedPieceInstance.transform.position);
         HighlightPossibleMoves(gridPos);
         yield return new WaitForSeconds(0.05f); if (!_isReseting) _canInput = true;
@@ -362,7 +402,7 @@ public class ErisMinigameManager : NetworkBehaviour
         if (BlackFogVFX != null) { BlackFogVFX.Stop(); BlackFogVFX.Clear(); }
         if (CameraManager.Instance != null) CameraManager.Instance.SwitchCamera(CameraPreset.ThirdPerson); 
         EventBus.RaiseGameResumed(); 
-        if (IsServer) { _isGameActive.Value = false; _hasCompleted.Value = true; if (_spawnedPieceInstance != null) _spawnedPieceInstance.GetComponent<NetworkObject>().Despawn(); }
+        if (IsServer) { _isGameActive.Value = false; _hasCompleted.Value = true; }
     }
 
     private ErisTile GetTileAt(Vector2Int pos) => _spawnedTiles.Find(t => t.GridPos == pos);
@@ -370,6 +410,7 @@ public class ErisMinigameManager : NetworkBehaviour
         if (_spawnCoroutine != null) StopCoroutine(_spawnCoroutine); if (_pathLoopCoroutine != null) StopCoroutine(_pathLoopCoroutine);
         if (_idleWaveCoroutine != null) StopCoroutine(_idleWaveCoroutine);
         foreach (var t in _spawnedTiles) if (t != null) Destroy(t.gameObject); _spawnedTiles.Clear(); 
+        if (_spawnedPieceInstance != null) Destroy(_spawnedPieceInstance); _spawnedPieceInstance = null;
         ErisTile[] existingTiles = GetComponentsInChildren<ErisTile>(); foreach(var et in existingTiles) Destroy(et.gameObject);
     }
 }

@@ -33,6 +33,9 @@ public class NGOPlayerSync : NetworkBehaviour
     [SerializeField] private Behaviour[] _ownerOnlyBehaviours;
 
     private bool _hasAppliedSpawnState;
+    private bool _isTeleporting; // Flag để tránh ApplyAuthorityState can thiệp khi đang dịch chuyển
+
+    public bool IsTeleporting => _isTeleporting;
 
     private void Awake()
     {
@@ -81,8 +84,25 @@ public class NGOPlayerSync : NetworkBehaviour
 
     private void HandleSceneLoaded(ulong clientId, string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode)
     {
-        // Khi bất kỳ ai load xong cảnh mới, ta kiểm tra lại authority state của mình
-        ApplyAuthorityState();
+        // CHỈ XỬ LÝ NẾU LÀ CHÍNH MÁY NÀY LOAD XONG
+        if (clientId != NetworkManager.Singleton.LocalClientId) return;
+
+        Debug.Log($"[NGOPlayerSync] Local client {clientId} loaded scene: {sceneName}. Applying authority state.");
+        
+        // Trì hoãn một chút sau khi load scene để Netcode ổn định vị trí ban đầu
+        StartCoroutine(DelayedAuthorityStateAfterLoad());
+    }
+
+    private IEnumerator DelayedAuthorityStateAfterLoad()
+    {
+        // Đợi 2 frame để Unity nạp xong physics scene
+        yield return null;
+        yield return new WaitForFixedUpdate();
+        
+        if (!_isTeleporting)
+        {
+            ApplyAuthorityState();
+        }
     }
 
     public override void OnGainedOwnership()
@@ -157,6 +177,9 @@ public class NGOPlayerSync : NetworkBehaviour
 
     private void ApplyAuthorityState()
     {
+        // Nếu đang trong quá trình Teleport, để coroutine tự quản lý vật lý
+        if (_isTeleporting) return;
+
         // Script này dùng ClientNetworkTransform/ClientNetworkAnimator nên authority = owner.
         bool isAuthority = IsOwner;
 
@@ -218,7 +241,7 @@ public class NGOPlayerSync : NetworkBehaviour
         }
         else if (IsOwner)
         {
-            // Nếu là Owner, thực hiện trực tiếp
+            // Nếu là Owner (và không phải Server), thực hiện trực tiếp
             StartCoroutine(PerformTeleportCoroutine(position, rotation));
         }
     }
@@ -235,41 +258,78 @@ public class NGOPlayerSync : NetworkBehaviour
 
     private IEnumerator PerformTeleportCoroutine(Vector3 position, Quaternion rotation)
     {
-        // 1. Tạm thời tắt Rigidbody Interpolation để tránh rubber banding
+        if (_isTeleporting) yield break;
+        _isTeleporting = true;
+        
+        Debug.Log($"[NGOPlayerSync] Starting Teleport to {position}");
+
+        // 1. Tắt tạm thời các thành phần gây xung đột vị trí/vật lý
         RigidbodyInterpolation originalInterpolation = RigidbodyInterpolation.None;
         bool hasRigidbody = _rigidbody != null;
+        Collider col = GetComponent<Collider>();
+        bool originalColState = col != null && col.enabled;
         
         if (hasRigidbody)
         {
+            // Tạm thời vô hiệu hóa NetworkRigidbody để nó không tự động set lại isKinematic = false
+            if (_networkRigidbody != null) _networkRigidbody.enabled = false;
+
             originalInterpolation = _rigidbody.interpolation;
             _rigidbody.interpolation = RigidbodyInterpolation.None;
             _rigidbody.linearVelocity = Vector3.zero;
             _rigidbody.angularVelocity = Vector3.zero;
-            _rigidbody.isKinematic = true; // Tạm khóa vật lý
+            _rigidbody.isKinematic = true; 
         }
+
+        if (col != null) col.enabled = false; 
 
         // 2. Cập nhật vị trí transform
         transform.position = position;
         transform.rotation = rotation;
 
-        // 3. Thông báo cho NetworkTransform (NGO 1.5+)
+        // 3. Thông báo cho NetworkTransform để đồng bộ ngay lập tức
         if (_networkTransform != null)
         {
             _networkTransform.Teleport(position, rotation, transform.localScale);
         }
 
-        // 4. Chờ 1 frame vật lý để Engine và NetworkTransform ghi nhận vị trí mới
-        yield return new WaitForFixedUpdate();
-
-        // 5. Khôi phục trạng thái Rigidbody
-        if (hasRigidbody && _rigidbody != null)
+        // 4. ĐÓNG BĂNG TRONG 1 GIÂY THỰC (Mô phỏng hành động Pause game của bạn)
+        // Điều này giúp Netcode ổn định vị trí và các Client khác nhận được dữ liệu chuẩn
+        float freezeTimer = 1.0f;
+        while (freezeTimer > 0)
         {
-            _rigidbody.isKinematic = !IsOwner; // Trả lại trạng thái theo Authority
-            _rigidbody.interpolation = originalInterpolation;
-            _rigidbody.linearVelocity = Vector3.zero;
-            _rigidbody.angularVelocity = Vector3.zero;
+            transform.position = position;
+            transform.rotation = rotation;
+            if (hasRigidbody)
+            {
+                _rigidbody.linearVelocity = Vector3.zero;
+                _rigidbody.angularVelocity = Vector3.zero;
+                _rigidbody.isKinematic = true;
+            }
+            freezeTimer -= Time.deltaTime;
+            yield return null;
         }
 
-        Debug.Log($"[NGOPlayerSync] Teleported to {position}");
+        // 5. Khôi phục trạng thái
+        if (col != null) col.enabled = originalColState;
+        
+        if (hasRigidbody && _rigidbody != null)
+        {
+            _rigidbody.interpolation = originalInterpolation;
+            _rigidbody.linearVelocity = Vector3.zero;
+            
+            // Kích hoạt lại NetworkRigidbody
+            if (_networkRigidbody != null) _networkRigidbody.enabled = true;
+
+            // Thiết lập lại trạng thái kinematic dựa trên authority
+            _rigidbody.isKinematic = !IsOwner; 
+        }
+
+        _isTeleporting = false;
+        
+        // Cập nhật lại state chuẩn
+        ApplyAuthorityState();
+
+        Debug.Log($"[NGOPlayerSync] Safety Teleport completed to {position}. Physics restored.");
     }
 }

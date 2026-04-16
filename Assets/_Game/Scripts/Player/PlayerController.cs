@@ -20,6 +20,7 @@ public class PlayerController : NetworkBehaviour
     private CapsuleCollider    _capsule;
     private PlayerStateMachine _fsm;
     private PlayerInputHandler _input;
+    private NGOPlayerSync      _sync; // Thêm reference này
 
     // Runtime state
     private int     _jumpCount;
@@ -56,6 +57,7 @@ public class PlayerController : NetworkBehaviour
         _capsule = GetComponent<CapsuleCollider>();
         _fsm    = GetComponent<PlayerStateMachine>();
         _input  = GetComponent<PlayerInputHandler>();
+        _sync   = GetComponent<NGOPlayerSync>(); // Lấy component này
 
         if (_config == null)
         {
@@ -81,6 +83,14 @@ public class PlayerController : NetworkBehaviour
         if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby"))
         {
             _rb.linearVelocity = new Vector3(0, _rb.linearVelocity.y, 0);
+            _rb.angularVelocity = Vector3.zero;
+            return;
+        }
+
+        // CHẶN HOÀN TOÀN KHI ĐANG TELEPORT (SỬA LỖI RƠI XUYÊN SÀN)
+        if (_sync != null && _sync.IsTeleporting)
+        {
+            _rb.linearVelocity = Vector3.zero;
             _rb.angularVelocity = Vector3.zero;
             return;
         }
