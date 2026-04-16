@@ -34,6 +34,9 @@ namespace Networking.LobbySystem
 
         private void Start()
         {
+            // Tự động gắn Juice cho tất cả các nút để đỡ phải kéo tay
+            AddJuiceToAllButtons();
+
             // Initial state
             ShowMainMenu();
 
@@ -65,17 +68,19 @@ namespace Networking.LobbySystem
 
         private void UpdateMainMenuButtonsState()
         {
+            if (createRoomButton == null || playerNameInputField == null) return;
+            
             bool hasName = !string.IsNullOrEmpty(playerNameInputField.text);
             createRoomButton.interactable = hasName;
-            joinRoomButton.interactable = hasName;
-            quickJoinButton.interactable = hasName;
+            if (joinRoomButton != null) joinRoomButton.interactable = hasName;
+            if (quickJoinButton != null) quickJoinButton.interactable = hasName;
         }
 
         private void ShowMainMenu()
         {
-            mainMenuPanel.SetActive(true);
-            joinRoomPanel.SetActive(false);
-            roomPanel.SetActive(false);
+            if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
+            if (joinRoomPanel != null) joinRoomPanel.SetActive(false);
+            if (roomPanel != null) roomPanel.SetActive(false);
         }
 
         private async Task<bool> EnsureAuthenticated()
@@ -232,6 +237,25 @@ namespace Networking.LobbySystem
         private async void OnLeaveClicked()
         {
             await LobbyManager.Instance.LeaveLobby();
+        }
+
+        private void AddJuiceToAllButtons()
+        {
+            // Sử dụng danh sách các nút đã kéo vào Inspector
+            Button[] buttons = { 
+                createRoomButton, joinRoomButton, quickJoinButton, 
+                confirmJoinButton, backFromJoinButton, 
+                readyButton, startButton, leaveButton 
+            };
+
+            foreach (var btn in buttons)
+            {
+                if (btn != null && btn.GetComponent<UIButtonJuice>() == null)
+                {
+                    btn.gameObject.AddComponent<UIButtonJuice>();
+                    Debug.Log($"[LobbyUI] Added Juice to button: {btn.name}");
+                }
+            }
         }
     }
 }

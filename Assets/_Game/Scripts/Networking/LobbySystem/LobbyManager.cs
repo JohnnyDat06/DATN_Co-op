@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Netcode;
@@ -98,6 +99,29 @@ namespace Networking.LobbySystem
 
         public void StartGame(string sceneName) {
             if (NetworkManager.Singleton.IsServer) {
+                Debug.Log($"[LobbyManager] StartGame requested for scene: {sceneName}");
+                StartCoroutine(StartGameWithFade(sceneName));
+            }
+        }
+
+        private IEnumerator StartGameWithFade(string sceneName) {
+            Debug.Log("<color=cyan><size=20><b>[LOBBY MANAGER] >>> STARTING SEAMLESS SEQUENCE <<<</b></size></color>");
+            
+            if (LoadingSyncManager.Instance != null) {
+                Debug.Log("<color=white><size=15><b>[LOBBY MANAGER] STEP 1: TRIGGERING FADE IN...</b></size></color>");
+                LoadingSyncManager.Instance.StartLoadingFadeClientRpc();
+            } else {
+                Debug.LogError("<color=red><size=20><b>[ERROR] LOADING SYNC MANAGER IS MISSING!</b></size></color>");
+            }
+            
+            // DÙNG REALTIME ĐỂ TRÁNH BỊ KẸT NẾU TIME.TIMESCALE = 0
+            yield return new WaitForSecondsRealtime(0.8f);
+
+            if (SceneLoader.Instance != null) {
+                Debug.Log("<color=yellow><size=18><b>[LOBBY MANAGER] STEP 2: CALLING SCENE LOADER...</b></size></color>");
+                SceneLoader.Instance.LoadScene(sceneName);
+            } else {
+                Debug.LogError("<color=red><size=20><b>[ERROR] SCENE LOADER INSTANCE NOT FOUND!</b></size></color>");
                 NetworkManager.Singleton.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
             }
         }
