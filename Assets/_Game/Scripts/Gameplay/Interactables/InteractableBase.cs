@@ -69,6 +69,11 @@ public abstract class InteractableBase : NetworkBehaviour, IInteractable
         // PromptUI được ẩn bởi InteractPromptHUD khi OnInteractableLost fire.
     }
 
+    public virtual Transform GetPromptTransform()
+    {
+        return transform;
+    }
+
     public abstract void Interact(ulong playerId);
 
     protected bool CanPlayerInteract(ulong clientId)

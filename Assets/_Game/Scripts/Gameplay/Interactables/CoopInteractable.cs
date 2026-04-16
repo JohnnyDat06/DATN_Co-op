@@ -8,6 +8,11 @@ public class CoopInteractable : InteractableBase
     [SerializeField] private Transform _pointB;
     [SerializeField] private float _validDistance = 2f;
 
+    [Header("Animations")]
+    [SerializeField] private Animator _animatorA;
+    [SerializeField] private Animator _animatorB;
+    [SerializeField] private string _animParamName = "IsActive";
+
     private readonly NetworkVariable<bool> _playerAReady = new(
         false,
         NetworkVariableReadPermission.Everyone,
@@ -23,6 +28,9 @@ public class CoopInteractable : InteractableBase
         base.OnNetworkSpawn();
         _playerAReady.OnValueChanged += OnPlayerAReadyChanged;
         _playerBReady.OnValueChanged += OnPlayerBReadyChanged;
+        
+        // Initial state
+        UpdateLeverAnimations(_playerAReady.Value, _playerBReady.Value);
     }
 
     public override void OnNetworkDespawn()
@@ -30,6 +38,12 @@ public class CoopInteractable : InteractableBase
         base.OnNetworkDespawn();
         _playerAReady.OnValueChanged -= OnPlayerAReadyChanged;
         _playerBReady.OnValueChanged -= OnPlayerBReadyChanged;
+    }
+
+    public override Transform GetPromptTransform()
+    {
+        bool isHost = NetworkManager.Singleton.IsHost;
+        return isHost ? _pointA : _pointB;
     }
 
     public override void Interact(ulong playerId)
@@ -87,12 +101,23 @@ public class CoopInteractable : InteractableBase
 
         if (_playerBReady.Value)
         {
-            if (!IsPlayerNear(1, false)) // ID = 1 tam thoi cho p2
+            ulong clientPlayerId = GetFirstClientId();
+            if (clientPlayerId != NetworkManager.ServerClientId && !IsPlayerNear(clientPlayerId, false))
             {
                 _playerBReady.Value = false;
                 Debug.Log($"[CoopInteractable] {_interactableId} - Client roi khoi vi tri -> Huy San Sang.");
             }
         }
+    }
+
+    private ulong GetFirstClientId()
+    {
+        if (NetworkManager.Singleton == null) return 0;
+        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+        {
+            if (client.ClientId != NetworkManager.ServerClientId) return client.ClientId;
+        }
+        return 0;
     }
 
     private bool IsPlayerNear(ulong playerId, bool isHost)
@@ -133,11 +158,20 @@ public class CoopInteractable : InteractableBase
     private void OnPlayerAReadyChanged(bool previousValue, bool newValue)
     {
         HandleReadinessUI(NetworkManager.ServerClientId, previousValue, newValue);
+        if (_animatorA != null) _animatorA.SetBool(_animParamName, newValue);
     }
 
     private void OnPlayerBReadyChanged(bool previousValue, bool newValue)
     {
-        HandleReadinessUI(1, previousValue, newValue);
+        ulong clientPlayerId = GetFirstClientId();
+        HandleReadinessUI(clientPlayerId, previousValue, newValue);
+        if (_animatorB != null) _animatorB.SetBool(_animParamName, newValue);
+    }
+
+    private void UpdateLeverAnimations(bool readyA, bool readyB)
+    {
+        if (_animatorA != null) _animatorA.SetBool(_animParamName, readyA);
+        if (_animatorB != null) _animatorB.SetBool(_animParamName, readyB);
     }
 
     private void HandleReadinessUI(ulong playerId, bool previousValue, bool newValue)
