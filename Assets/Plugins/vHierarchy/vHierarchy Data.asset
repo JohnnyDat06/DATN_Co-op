@@ -51,3 +51,5 @@ MonoBehaviour:
   bookmarkedScenePaths:
   - Assets/_Game/Scenes/ThuanScense/ThuanSandbox.unity
   - Assets/_Game/Scenes/DatScense/Player.unity
+  - Assets/_Game/Scenes/_Core/Map1_Main.unity
+  - Assets/_Game/Scenes/_Core/Map2_Main.unity
