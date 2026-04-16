@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// RockShooter — Hệ thống bắn đá ngang.
-/// Chỉ hoạt động trên Server để đảm bảo tính đồng nhất cho tất cả người chơi.
+/// Đã được sửa đổi để tự đồng bộ hóa mà không cần đăng ký NetworkPrefab.
 /// </summary>
 public class RockShooter : NetworkBehaviour
 {
@@ -21,7 +21,7 @@ public class RockShooter : NetworkBehaviour
 
     private void Update()
     {
-        // Chỉ Server mới xử lý logic bắn
+        // Chỉ Server mới điều khiển nhịp bắn
         if (!IsServer || !_autoShoot) return;
 
         if (Time.time >= _nextSpawnTime)
@@ -42,36 +42,33 @@ public class RockShooter : NetworkBehaviour
             return;
         }
 
-        // 1. Xác định vị trí và hướng bắn "thẳng" của máy bắn (dựa trên SpawnPoint)
+        // 1. Tính toán thông số bắn trên Server
         Vector3 spawnPos = _spawnPoint != null ? _spawnPoint.position : transform.position;
         Quaternion aimRotation = _spawnPoint != null ? _spawnPoint.rotation : transform.rotation;
-        Vector3 shootDirection = aimRotation * Vector3.forward; // Đây luôn là hướng "thẳng" theo nòng súng
-
-        // 2. Tính toán góc quay của viên đá (kết hợp hướng bắn và góc quay bù cho đẹp)
+        Vector3 shootDirection = aimRotation * Vector3.forward;
+        Vector3 velocity = shootDirection * _config.HorizontalSpeed;
         Quaternion rockRotation = aimRotation * Quaternion.Euler(_rotationOffset);
+        double serverTime = NetworkManager.Singleton.ServerTime.Time;
 
-        // 3. Spawn viên đá trên Server
-        GameObject rockInstance = Instantiate(_rockPrefab, spawnPos, rockRotation);
+        // 2. Gửi lệnh cho toàn bộ Client sinh đá (bao gồm cả Host)
+        SpawnRockClientRpc(spawnPos, rockRotation, velocity, serverTime);
+    }
+
+    [ClientRpc]
+    private void SpawnRockClientRpc(Vector3 pos, Quaternion rot, Vector3 vel, double spawnTime)
+    {
+        // Sinh đá cục bộ trên mỗi máy. Vì sinh cục bộ nên không cần đăng ký NetworkPrefab.
+        GameObject rockInstance = Instantiate(_rockPrefab, pos, rot);
         
-        // 4. Kích hoạt NetworkObject
-        var networkObject = rockInstance.GetComponent<NetworkObject>();
-        if (networkObject != null)
+        var projectile = rockInstance.GetComponent<RockProjectile>();
+        if (projectile != null)
         {
-            networkObject.Spawn();
-            
-            // 5. Yêu cầu viên đá bay theo hướng bắn "thẳng" đã tính ở bước 1
-            var projectile = rockInstance.GetComponent<RockProjectile>();
-            if (projectile != null)
-            {
-                projectile.Launch(shootDirection * _config.HorizontalSpeed);
-            }
+            projectile.Initialize(vel, spawnTime, pos);
         }
         else
         {
-            Debug.LogWarning("[RockShooter] RockPrefab thiếu component NetworkObject!");
+            Debug.LogWarning("[RockShooter] RockPrefab thiếu component RockProjectile!");
         }
-
-        Debug.Log("[RockShooter] Rock shot in direction: " + shootDirection);
     }
 
     public void SetAutoShoot(bool value)

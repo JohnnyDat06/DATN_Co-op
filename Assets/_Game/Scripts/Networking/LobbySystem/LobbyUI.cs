@@ -10,6 +10,7 @@ namespace Networking.LobbySystem
     {
         [Header("Main Menu")]
         [SerializeField] private GameObject mainMenuPanel;
+        [SerializeField] private TMP_InputField playerNameInputField;
         [SerializeField] private Button createRoomButton;
         [SerializeField] private Button joinRoomButton;
         [SerializeField] private Button quickJoinButton;
@@ -27,13 +28,14 @@ namespace Networking.LobbySystem
         [SerializeField] private Button startButton;
         [SerializeField] private Button leaveButton;
 
-        private async void Start()
+        [Header("Custom Visuals")]
+        [SerializeField] private Sprite readySprite;
+        [SerializeField] private Sprite unreadySprite;
+
+        private void Start()
         {
             // Initial state
             ShowMainMenu();
-
-            // Authentication
-            await LobbyManager.Instance.Authenticate("Player_" + Random.Range(10, 99));
 
             // Button Listeners
             createRoomButton.onClick.AddListener(OnCreateRoomClicked);
@@ -47,9 +49,26 @@ namespace Networking.LobbySystem
             startButton.onClick.AddListener(OnStartClicked);
             leaveButton.onClick.AddListener(OnLeaveClicked);
 
+            // Input field listeners
+            playerNameInputField.onValueChanged.AddListener(OnPlayerNameChanged);
+            UpdateMainMenuButtonsState();
+
             // Lobby Manager Events
             LobbyManager.Instance.OnLobbyJoined += UpdateRoomUI;
             LobbyManager.Instance.OnLobbyLeft += ShowMainMenu;
+        }
+
+        private void OnPlayerNameChanged(string newName)
+        {
+            UpdateMainMenuButtonsState();
+        }
+
+        private void UpdateMainMenuButtonsState()
+        {
+            bool hasName = !string.IsNullOrEmpty(playerNameInputField.text);
+            createRoomButton.interactable = hasName;
+            joinRoomButton.interactable = hasName;
+            quickJoinButton.interactable = hasName;
         }
 
         private void ShowMainMenu()
@@ -59,9 +78,21 @@ namespace Networking.LobbySystem
             roomPanel.SetActive(false);
         }
 
+        private async Task<bool> EnsureAuthenticated()
+        {
+            if (string.IsNullOrEmpty(playerNameInputField.text)) return false;
+            
+            // Show loading or something if needed
+            await LobbyManager.Instance.Authenticate(playerNameInputField.text);
+            return true;
+        }
+
         private async void OnCreateRoomClicked()
         {
-            await LobbyManager.Instance.CreateLobby("MyRoom", 2, false);
+            if (await EnsureAuthenticated())
+            {
+                await LobbyManager.Instance.CreateLobby("MyRoom", 2, false);
+            }
         }
 
         private void OnJoinRoomClicked()
@@ -72,13 +103,16 @@ namespace Networking.LobbySystem
 
         private async void OnQuickJoinClicked()
         {
-            await LobbyManager.Instance.QuickJoinLobby();
+            if (await EnsureAuthenticated())
+            {
+                await LobbyManager.Instance.QuickJoinLobby();
+            }
         }
 
         private async void OnConfirmJoinClicked()
         {
             string code = roomCodeInputField.text;
-            if (!string.IsNullOrEmpty(code))
+            if (!string.IsNullOrEmpty(code) && await EnsureAuthenticated())
             {
                 await LobbyManager.Instance.JoinLobbyByCode(code);
             }
@@ -122,10 +156,24 @@ namespace Networking.LobbySystem
                 var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject.GetComponent<LobbyPlayerState>();
                 if (localPlayer != null)
                 {
+                    bool isReady = localPlayer.IsReady.Value;
+                    
+                    // Update Text
                     var btnText = readyButton.GetComponentInChildren<TextMeshProUGUI>();
                     if (btnText != null)
                     {
-                        btnText.text = localPlayer.IsReady.Value ? "UNREADY" : "READY";
+                        btnText.text = isReady ? "UNREADY" : "READY";
+                    }
+
+                    // Update Image/Sprite
+                    var btnImage = readyButton.GetComponent<Image>();
+                    if (btnImage != null)
+                    {
+                        // Nếu đang Ready thì hiện ảnh Unready (để người dùng bấm vào để Unready)
+                        // Hoặc ngược lại tùy theo thiết kế của bạn. 
+                        // Thông thường ảnh trên nút là "Hành động sẽ thực hiện" hoặc "Trạng thái hiện tại".
+                        // Theo yêu cầu của bạn: "bấm redy thì sẽ đổi thành ảnh khác là unready"
+                        btnImage.sprite = isReady ? unreadySprite : readySprite;
                     }
                 }
             }
@@ -135,25 +183,15 @@ namespace Networking.LobbySystem
         {
             Debug.Log("[LobbyUI] Ready Button Clicked!");
             
-            if (NetworkManager.Singleton == null) { Debug.LogError("NetworkManager is null!"); return; }
-            if (NetworkManager.Singleton.LocalClient == null) { Debug.LogError("LocalClient is null!"); return; }
+            if (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null) return;
             
             var playerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
-            if (playerObj == null)
-            {
-                Debug.LogError("Local PlayerObject is null! The Player Prefab might not be spawned yet. Check NetworkManager settings.");
-                return;
-            }
+            if (playerObj == null) return;
 
-            var localPlayer = playerObj.GetComponent<LobbyPlayerState>();
-            if (localPlayer != null)
+            if (playerObj.TryGetComponent<LobbyPlayerState>(out var localPlayer))
             {
-                Debug.Log($"[LobbyUI] Sending ToggleReadyServerRpc. Current State: {localPlayer.IsReady.Value}");
+                Debug.Log($"[LobbyUI] Toggling Ready. Current: {localPlayer.IsReady.Value}");
                 localPlayer.ToggleReadyServerRpc();
-            }
-            else
-            {
-                Debug.LogError("LobbyPlayerState component NOT FOUND on PlayerObject!");
             }
         }
 

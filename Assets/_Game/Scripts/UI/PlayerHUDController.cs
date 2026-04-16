@@ -1,11 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Unity.Netcode;
+using TMPro;
+using Networking.LobbySystem;
 
 /// <summary>
-/// PlayerHUDController — Quản lý UI thanh máu cho Host và Client.
-/// Đồng bộ trạng thái từ NetworkVariable của PlayerHealth.
-/// Sử dụng Lerp để trượt thanh máu mượt mà.
+/// PlayerHUDController — Quản lý UI thanh máu và Tên cho Host và Client.
+/// Đồng bộ trạng thái từ NetworkVariable của PlayerHealth và LobbyPlayerState.
 /// SRS §9.3
 /// </summary>
 public class PlayerHUDController : MonoBehaviour
@@ -13,6 +14,8 @@ public class PlayerHUDController : MonoBehaviour
     [Header("UI References")]
     [SerializeField] private Slider _hostSlider;
     [SerializeField] private Slider _clientSlider;
+    [SerializeField] private TextMeshProUGUI _hostNameText;
+    [SerializeField] private TextMeshProUGUI _clientNameText;
     [SerializeField] private GameObject _hostBarRoot;
     [SerializeField] private GameObject _clientBarRoot;
 
@@ -22,6 +25,8 @@ public class PlayerHUDController : MonoBehaviour
 
     private PlayerHealth _hostHealth;
     private PlayerHealth _clientHealth;
+    private LobbyPlayerState _hostState;
+    private LobbyPlayerState _clientState;
 
     private float _targetHostValue = 1f;
     private float _targetClientValue = 1f;
@@ -60,6 +65,16 @@ public class PlayerHUDController : MonoBehaviour
                 {
                     _hostHealth = player;
                     _hostHealth.OnHealthChanged += HandleHostHealthChanged;
+                    
+                    if (player.TryGetComponent<LobbyPlayerState>(out var state))
+                    {
+                        _hostState = state;
+                        // Hủy đăng ký cũ nếu có để tránh trùng
+                        _hostState.PlayerName.OnValueChanged -= OnHostNameChanged;
+                        _hostState.PlayerName.OnValueChanged += OnHostNameChanged;
+                        UpdateNameText(_hostNameText, _hostState.PlayerName.Value.ToString());
+                    }
+
                     if (_hostBarRoot != null) _hostBarRoot.SetActive(true);
                     _targetHostValue = _hostHealth.CurrentHealth / _hostHealth.MaxHealth;
                     _hostSlider.value = _targetHostValue;
@@ -71,11 +86,40 @@ public class PlayerHUDController : MonoBehaviour
                 {
                     _clientHealth = player;
                     _clientHealth.OnHealthChanged += HandleClientHealthChanged;
+
+                    if (player.TryGetComponent<LobbyPlayerState>(out var state))
+                    {
+                        _clientState = state;
+                        // Hủy đăng ký cũ nếu có để tránh trùng
+                        _clientState.PlayerName.OnValueChanged -= OnClientNameChanged;
+                        _clientState.PlayerName.OnValueChanged += OnClientNameChanged;
+                        UpdateNameText(_clientNameText, _clientState.PlayerName.Value.ToString());
+                    }
+
                     if (_clientBarRoot != null) _clientBarRoot.SetActive(true);
                     _targetClientValue = _clientHealth.CurrentHealth / _clientHealth.MaxHealth;
                     _clientSlider.value = _targetClientValue;
                 }
             }
+        }
+    }
+
+    private void OnHostNameChanged(Unity.Collections.FixedString32Bytes oldVal, Unity.Collections.FixedString32Bytes newVal)
+    {
+        UpdateNameText(_hostNameText, newVal.ToString());
+    }
+
+    private void OnClientNameChanged(Unity.Collections.FixedString32Bytes oldVal, Unity.Collections.FixedString32Bytes newVal)
+    {
+        UpdateNameText(_clientNameText, newVal.ToString());
+    }
+
+    private void UpdateNameText(TextMeshProUGUI textComp, string name)
+    {
+        if (textComp != null)
+        {
+            textComp.text = string.IsNullOrEmpty(name) ? "Player" : name;
+            Debug.Log($"[HUD] Updating UI Name to: {textComp.text}");
         }
     }
 
@@ -108,5 +152,7 @@ public class PlayerHUDController : MonoBehaviour
     {
         if (_hostHealth != null) _hostHealth.OnHealthChanged -= HandleHostHealthChanged;
         if (_clientHealth != null) _clientHealth.OnHealthChanged -= HandleClientHealthChanged;
+        if (_hostState != null) _hostState.PlayerName.OnValueChanged -= OnHostNameChanged;
+        if (_clientState != null) _clientState.PlayerName.OnValueChanged -= OnClientNameChanged;
     }
 }

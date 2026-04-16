@@ -18,6 +18,7 @@ namespace Networking.LobbySystem
         public static LobbyManager Instance { get; private set; }
         private Lobby _currentLobby;
         private string _playerId;
+        private string _playerName; // Lưu tên để dùng khi join/create
         private float _pollTimer;
 
         private const string KEY_RELAY_JOIN_CODE = "RelayJoinCode";
@@ -55,19 +56,35 @@ namespace Networking.LobbySystem
             }
         }
 
-        public async Task Authenticate(string name) {
+        public async Task Authenticate(string playerName) {
+            _playerName = playerName; // Lưu lại tên
+
             if (Unity.Services.Core.UnityServices.State == Unity.Services.Core.ServicesInitializationState.Uninitialized) 
                 await Unity.Services.Core.UnityServices.InitializeAsync();
+            
             if (!AuthenticationService.Instance.IsSignedIn) 
+            {
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+
             _playerId = AuthenticationService.Instance.PlayerId;
+            Debug.Log($"[LobbyManager] Authenticated (ID: {_playerId}). Name set to: {_playerName}");
+        }
+
+        private Player GetPlayerData() {
+            return new Player {
+                Data = new Dictionary<string, PlayerDataObject> {
+                    { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, _playerName) }
+                }
+            };
         }
 
         public async Task CreateLobby(string lobbyName, int maxPlayers, bool isPrivate) {
             try {
                 string roomCode = UnityEngine.Random.Range(1000, 9999).ToString();
                 var options = new CreateLobbyOptions { 
-                    Data = new Dictionary<string, DataObject> { { KEY_ROOM_CODE, new DataObject(DataObject.VisibilityOptions.Public, roomCode) } } 
+                    Data = new Dictionary<string, DataObject> { { KEY_ROOM_CODE, new DataObject(DataObject.VisibilityOptions.Public, roomCode) } },
+                    Player = GetPlayerData() // Gửi tên ngay khi tạo
                 };
                 _currentLobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, maxPlayers, options);
                 OnLobbyJoined?.Invoke(_currentLobby);
@@ -87,7 +104,10 @@ namespace Networking.LobbySystem
 
         public async Task QuickJoinLobby() {
             try {
-                _currentLobby = await LobbyService.Instance.QuickJoinLobbyAsync();
+                var options = new QuickJoinLobbyOptions {
+                    Player = GetPlayerData() // Gửi tên ngay khi join nhanh
+                };
+                _currentLobby = await LobbyService.Instance.QuickJoinLobbyAsync(options);
                 OnLobbyJoined?.Invoke(_currentLobby);
             } catch { }
         }
@@ -97,7 +117,10 @@ namespace Networking.LobbySystem
                 var query = await LobbyService.Instance.QueryLobbiesAsync();
                 foreach (var l in query.Results) {
                     if (l.Data != null && l.Data.ContainsKey(KEY_ROOM_CODE) && l.Data[KEY_ROOM_CODE].Value == roomCode) {
-                        _currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(l.Id);
+                        var options = new JoinLobbyByIdOptions {
+                            Player = GetPlayerData() // Gửi tên ngay khi join bằng code
+                        };
+                        _currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(l.Id, options);
                         OnLobbyJoined?.Invoke(_currentLobby);
                         return;
                     }
@@ -130,5 +153,6 @@ namespace Networking.LobbySystem
         }
 
         public string GetPlayerId() => _playerId;
+        public string GetPlayerName() => _playerName;
     }
 }
