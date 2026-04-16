@@ -1,68 +1,109 @@
 # DATN Co-op Project Architecture Documentation
 
-This document provides an overview of the technical architecture and core systems of the **DATN Co-op** project.
+This document provides a comprehensive overview of the technical architecture, core systems, and development patterns of the **DATN Co-op** project.
 
-## 1. Core Communication: EventBus
-The `EventBus` (`Assets/_Game/Scripts/Core/EventBus.cs`) is a static hub for decoupled communication. It uses C# `Action` events to bridge different modules without direct hard-references.
+## 1. Core Architecture
 
-### Key Event Categories:
-- **Player:** `OnPlayerDied`, `OnPlayerRespawned`.
-- **Level:** `OnLevelCompleted`, `OnCheckpointReached`.
-- **Interaction:** `OnInteractableActivated`, `OnCoopInteractablePlayerReady`.
-- **Game State:** `OnGamePaused`, `OnGameResumed`.
-- **Networking:** `OnClientConnected`, `OnClientDisconnected`, `OnAllPlayersReady`.
-- **Systems:** `OnCameraPresetChanged`, `OnSettingsChanged`, `OnInputBindingChanged`, `OnScreenShakeRequested`.
+### Event-Driven Communication (`EventBus.cs`)
+The project uses a centralized `EventBus` (`Assets/_Game/Scripts/Core/EventBus.cs`) as the primary communication hub. This pattern ensures high decoupling between systems.
+- **Mechanism:** Static C# `Action` events with static "Raise" methods.
+- **Categories:** Player (Health/Respawn), Level (Completion/Checkpoints), Interaction (Co-op/Single), Game State (Pause/Resume), Networking (Connect/Disconnect/Ready), Camera, FX (Screen Shake), CutScenes, and Input.
+- **Standard:** Modules should never call each other directly if a corresponding event exists in the `EventBus`.
 
----
+### Game State Management (`GameStateMachine.cs`)
+The high-level game flow is managed by a state machine that controls transitions between:
+- `Loading`
+- `MainMenu`
+- `Playing`
 
-## 2. Player System: State Machine
-The player logic is managed by `PlayerStateMachine` (`Assets/_Game/Scripts/Player/PlayerStateMachine.cs`).
-
-- **Architecture:** Uses a State pattern with ~15+ states (Idle, Walk, Run, Jump, WallHang, etc.).
-- **Networking:** State is synchronized across all clients using `NetworkVariable<PlayerStateType>`. 
-  - Only the **Owner** can initiate transitions via `TransitionTo()`.
-  - All clients (including proxies) react to state changes via `OnStateValueChanged` to play appropriate animations and FX.
-- **Physics:** `PlayerController` handles the actual movement logic based on the current active state.
-
----
-
-## 3. Enemy & AI System
-AI is driven by Unity's **Behavior** package.
-
-- **Logic:** Defined in `.asset` behavior graphs.
-- **Movement:** `EnemyMovement.cs` handles server-authoritative movement using NavMesh pathfinding combined with Root Motion for high-quality animations.
-- **Detection:** Uses `VisionSensor` for target tracking.
+### Data-Driven Design (`ScriptableObjects`)
+Constants and configurations are externalized into `ScriptableObjects` (`SO...Config.cs`) to allow designers to tweak gameplay without code changes:
+- `SOPlayerConfig`: Movement speeds, jump heights, dash distances.
+- `SOLevelConfig`: Level-specific settings.
+- `SOVFXConfig` & `SOScreenShakeConfig`: Visual feedback parameters.
+- `SOAudioClip`: Audio mapping and settings.
 
 ---
 
-## 4. Networking: Unity Netcode for GameObjects (NGO)
-The game is built for multiplayer using Unity NGO.
+## 2. Player System
 
-- **Management:** `NetworkManagerWrapper` handles the NGO lifecycle and connects network events to the `EventBus`.
-- **Synchronization:** 
-  - `ClientNetworkTransform` (custom) or standard `NetworkTransform` for movement.
-  - `NetworkVariable` for high-level state synchronization (like player health or current animation state).
-- **Services:** Integrated with **Unity Authentication** and **Unity Relay** for internet connectivity.
+### State Machine Architecture
+The player uses a Finite State Machine (FSM) implemented across several classes:
+- **`PlayerStateMachine`**: Manages the current active state and handles transitions.
+- **`PlayerState`**: Abstract base class for all player states.
+- **States**: Located in `Assets/_Game/Scripts/Player/States`. Includes ~15+ specialized states like `IdleState`, `RunState`, `JumpState`, `WallHangState`, `Attack1/2/3State`, `DashState`, `AirGlideState`, etc.
+- **Network Sync:** The `PlayerStateMachine` synchronizes the `CurrentState` across the network using a `NetworkVariable<PlayerStateType>`. Only the owner can transition states, and proxies react to these changes to update visuals.
 
----
-
-## 5. Data-Driven Design
-Extensive use of `ScriptableObjects` (`SO...Config.cs`) for:
-- Player movement parameters.
-- Enemy stats and behavior settings.
-- VFX and Screen Shake configurations.
-- Audio settings.
+### Core Components
+- **`PlayerController`**: Handles physical movement logic, gravity, and collision detection using a `CharacterController`.
+- **`PlayerInputHandler`**: Bridges the Unity Input System Package to gameplay logic, converting raw inputs into actionable commands.
+- **`PlayerAnimator`**: Manages animation transitions and triggers, often listening to state changes from the FSM.
+- **`AttackComboController`**: Manages the timing and sequencing of combat combos.
+- **`PlayerHealth`**: Manages health and death logic, notifying the `EventBus` on death.
 
 ---
 
-## 6. Directory Structure Overview
-- `Assets/_Game/Scripts/Core`: High-level managers, Game State Machine, EventBus.
-- `Assets/_Game/Scripts/Player`: Player FSM, Controller, Input, Combat.
-- `Assets/_Game/Scripts/Enemies`: AI logic, Enemy movement, Sensors.
-- `Assets/_Game/Scripts/Network`: NGO wrappers, Auth, Relay, Player Syncing.
-- `Assets/_Game/Scripts/UI`: HUD, Menu systems, Prompt management.
-- `Assets/_Game/Scripts/Environment`: Interactables, Hazards, Level triggers.
+## 3. AI & Enemy System
+
+### Unity Behavior Package
+AI logic is implemented using the new **Unity Behavior** package (Unity 6).
+- **Behavior Graphs**: Logic is visually defined in `.asset` files (e.g., `Armadil_03_Behavior`).
+- **Custom Actions**: C# scripts that extend the behavior package:
+  - `ChaseTargetAction`: Pathfinding towards a player.
+  - `MoveToPositionAction`: Moving to specific coordinates.
+  - `GetWaypointAction`: Interacting with the `WaypointManager`.
+- **Sensors**: `VisionSensor.cs` handles target detection and field-of-view logic.
+
+### Enemy Components
+- **`EnemyMovement`**: Server-authoritative movement using `NavMeshAgent` and Root Motion.
+- **`EnemyCombat`**: Handles attack logic and damage output.
+- **`EnemyHealth`**: Manages enemy durability and implements `IDamageableEnemy`.
 
 ---
 
-*Last Updated: 2026-04-12*
+## 4. Networking (NGO)
+
+### Core Integration
+The project uses **Netcode for GameObjects (NGO)** for multiplayer functionality.
+- **`NetworkManagerWrapper`**: Manages the NGO lifecycle and maps network events (like client connection) to the `EventBus`.
+- **`PlayerSpawner`**: Handles spawning player prefabs for connected clients at designated spawn points.
+
+### Synchronization Strategies
+- **Movement**: Uses a combination of `ClientNetworkTransform` and `NGOPlayerSync` for smooth, interpolated movement on all clients.
+- **States**: High-level gameplay states (Player State, Health) are synchronized via `NetworkVariable`.
+- **Actions**: One-shot events (like jumping or attacking) are often triggered via `[ServerRpc]` and `[ClientRpc]`.
+
+### Backend & Services
+Integrated with **Unity Gaming Services (UGS)**:
+- **`AuthManager`**: Handles anonymous or account-based authentication.
+- **`RelayManager`**: Manages Unity Relay for P2P connection without port forwarding.
+
+---
+
+## 5. Environment & Gameplay
+
+### Interaction System
+- **`InteractableBase`**: Abstract class for interactive objects.
+- **`CoopInteractable`**: Specialized interactables requiring both players to be present or ready (e.g., synchronized switches).
+- **`SimpleSlidingDoor`**: Example of an environment object reacting to interactions.
+
+### Systems
+- **`RespawnManager`**: Listens to `OnPlayerDied` and handles spawning players back at the last checkpoint.
+- **`CheckpointTrigger`**: Updates the `RespawnManager`'s active spawn position.
+- **`CameraZoneTrigger`**: Dynamically changes camera presets based on player location using `OnCameraPresetChanged`.
+
+---
+
+## 6. Project Organization
+
+- `Assets/_Game/Scripts/Core`: High-level systems (EventBus, Game State, Scene Loading).
+- `Assets/_Game/Scripts/Player`: Everything related to player mechanics and state.
+- `Assets/_Game/Scripts/Enemies`: AI logic and enemy behaviors.
+- `Assets/_Game/Scripts/Network` & `Networking`: NGO wrappers, Sync logic, UGS integration.
+- `Assets/_Game/Scripts/UI`: HUD, Menus, Prompt UI.
+- `Assets/_Game/Scripts/Environment`: World objects, hazards, checkpoints.
+- `Assets/_Game/Scripts/Data`: ScriptableObject configuration classes.
+
+---
+
+*Last Updated: 2026-04-16*
