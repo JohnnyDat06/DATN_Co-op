@@ -137,7 +137,10 @@ public class CameraManager : MonoBehaviour
 
     public void SwitchCamera(CameraPreset preset)
     {
-        if (preset == _currentPreset || !_vcamMap.ContainsKey(preset)) return;
+        if (preset == _currentPreset) return;
+        
+        // Cho phép Cutscene ngay cả khi không có trong Map (để khóa Input)
+        if (!_vcamMap.ContainsKey(preset) && preset != CameraPreset.Cutscene) return;
 
         _currentPreset = preset;
         SetAllPriorities(PRIORITY_INACTIVE);
