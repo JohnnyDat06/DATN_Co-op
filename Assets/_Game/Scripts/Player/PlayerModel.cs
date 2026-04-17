@@ -28,36 +28,15 @@ public class PlayerModel : NetworkBehaviour
         // 1. CƯỠNG ÉP BẬT ACTIVE CỦA CHÍNH NÓ (Fix lỗi tàng hình do Prefab bị tắt)
         gameObject.SetActive(true);
 
-        // 2. Xếp bục đứng
-        AutoPosition();
+        // Đã xóa phần gọi AutoPosition() để ngăn chặn việc tự động giật lùi về LobbyAnchor
 
         // 3. Hiển thị mô hình
         bool isHostPlayer = OwnerClientId == NetworkManager.ServerClientId;
         ApplyModel(isHostPlayer);
     }
 
-    private void AutoPosition()
-    {
-        if (NetworkManager.Singleton == null) return;
-
-        var anchors = GameObject.FindGameObjectsWithTag("LobbyAnchor")
-                                .OrderBy(a => a.name)
-                                .ToList();
-
-        if (anchors.Count == 0) return;
-
-        // Dùng IndexOf để xác định slot thực tế thay vì ID
-        var clientIds = NetworkManager.Singleton.ConnectedClientsIds.ToList();
-        int slot = clientIds.IndexOf(OwnerClientId);
-        
-        if (slot == -1) slot = 0; // Fallback cho Host/Server
-        int index = slot % anchors.Count;
-
-        transform.position = anchors[index].transform.position;
-        transform.rotation = anchors[index].transform.rotation;
-        
-        Debug.Log($"[PlayerModel] AutoPosition assigned Player {OwnerClientId} to Anchor {index} (Slot {slot})");
-    }
+    // Đã XÓA HOÀN TOÀN hàm AutoPosition() vì việc đặt vị trí đã do LobbyPlayerState quản lý (chỉ 1 lần), 
+    // và Spawner sẽ lo phần còn lại khi chuyển map.
 
     private void ApplyModel(bool isHost)
     {
