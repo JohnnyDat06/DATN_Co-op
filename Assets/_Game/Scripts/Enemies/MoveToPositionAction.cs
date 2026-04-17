@@ -61,17 +61,32 @@ public partial class MoveToPositionAction : Action
 
 	protected override Status OnUpdate()
 	{
-		// Trên Client, quái đang được đồng bộ vị trí qua NetworkTransform
-		if (_movement == null || (_movement.IsSpawned && !_movement.IsServer))
+		// 1. Kiểm tra sự tồn tại của các thành phần
+		if (_movement == null || _agent == null) return Status.Failure;
+
+		// 2. CHỈ CHẠY LOGIC TRÊN SERVER. Trên Client, quái được đồng bộ qua NetworkTransform/Animator.
+		// Dùng IsSpawned để đảm bảo NetworkObject đã sẵn sàng.
+		if (!_movement.IsSpawned || !_movement.IsServer)
 		{
 			return Status.Running;
 		}
 
-		if (_agent == null) return Status.Failure;
+		// 3. KIỂM TRA AN TOÀN CHO NAVMESHAGENT (Tránh lỗi GetRemainingDistance khi đổi Scene)
+		// Agent phải đang Active và đang nằm trên một vùng NavMesh hợp lệ.
+		if (!_agent.isActiveAndEnabled || !_agent.isOnNavMesh)
+		{
+			return Status.Running;
+		}
 
-		// 3. Kiểm tra xem đã đến nơi chưa (CHỈ TRÊN SERVER)
+		// 4. Kiểm tra xem đã đến nơi chưa
 		if (!_agent.pathPending)
 		{
+			// Safe check: Nếu Agent không có đường đi hợp lệ, ta coi như chưa đến (hoặc đã lỗi)
+			if (!_agent.hasPath && _agent.pathStatus != NavMeshPathStatus.PathComplete)
+			{
+				return Status.Running;
+			}
+
 			if (_agent.remainingDistance <= StoppingDistance.Value)
 			{
 				return Status.Success;

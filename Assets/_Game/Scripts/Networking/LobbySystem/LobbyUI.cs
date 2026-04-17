@@ -189,7 +189,7 @@ namespace Networking.LobbySystem
             Debug.Log("[LobbyUI] Ready Button Clicked!");
             
             if (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null) return;
-            
+          
             var playerObj = NetworkManager.Singleton.LocalClient.PlayerObject;
             if (playerObj == null) return;
 
@@ -225,7 +225,7 @@ namespace Networking.LobbySystem
                 if (allReady && players.Length > 0)
                 {
                     Debug.Log("[LobbyUI] SUCCESS: All players ready. Loading scene LV1...");
-                    LobbyManager.Instance.StartGame("LV1");
+                    LobbyManager.Instance.StartGame("Map1_Main");
                 }
                 else
                 {

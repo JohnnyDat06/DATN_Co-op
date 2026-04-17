@@ -108,12 +108,22 @@ public class PlayerController : NetworkBehaviour
         // Update timers
         if (_knockbackTimer > 0f) _knockbackTimer -= Time.fixedDeltaTime;
 
-        // SAFETY NET: Đảm bảo không bao giờ bị kẹt mất trọng lực "bay trên trời" nếu lỡ ngắt state đột ngột
-        if (_fsm.CurrentStateType != PlayerStateType.DashInAir && 
-            _fsm.CurrentStateType != PlayerStateType.WallHang && 
-            _fsm.CurrentStateType != PlayerStateType.AirGlide)
+        // SAFETY NET: Đảm bảo không bao giờ bị kẹt mất trọng lực "bay trên trời" nếu lỡ ngắt state đột ngột.
+        // NHƯNG: Không được ép bật khi đang Teleport hoặc đang đợi Spawn (để tránh rơi xuyên sàn khi đổi màn).
+        bool shouldDisableGravityByState = _fsm.CurrentStateType == PlayerStateType.DashInAir || 
+                                          _fsm.CurrentStateType == PlayerStateType.WallHang || 
+                                          _fsm.CurrentStateType == PlayerStateType.AirGlide;
+        
+        bool isSyncWaiting = _sync != null && _sync.IsTeleporting;
+
+        if (!shouldDisableGravityByState && !isSyncWaiting)
         {
             _rb.useGravity = true;
+        }
+        else if (isSyncWaiting)
+        {
+            _rb.useGravity = false;
+            _rb.linearVelocity = new Vector3(0, Mathf.Max(0, _rb.linearVelocity.y), 0); // Chặn vận tốc rơi âm
         }
 
         HandleCrouch();

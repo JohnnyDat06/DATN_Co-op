@@ -5,84 +5,103 @@ using UnityEngine;
 namespace Game.Network
 {
     /// <summary>
-    /// PlayerSpawner — Quản lý việc spawn player tại các vị trí chỉ định.
-    /// Sử dụng hàm Teleport của Player để đảm bảo đồng bộ hóa chuẩn xác.
+    /// PlayerSpawner — Quản lý việc spawn player và đồng bộ hóa việc bắt đầu game.
+    /// Triển khai Loading Barrier: Đợi cả 2 người chơi nạp xong cảnh mới cho phép di chuyển.
     /// </summary>
     public class PlayerSpawner : NetworkBehaviour
     {
+        public static PlayerSpawner Instance { get; private set; }
+
         [Header("Spawn Settings")]
         [SerializeField] private Transform[] spawnPoints;
         
-        // Lưu trữ danh sách clientId đã được xử lý
-        private HashSet<ulong> processedClients = new HashSet<ulong>();
+        [Tooltip("Nếu bật, tất cả Player sẽ được ép về cùng độ cao Y của điểm Spawn đầu tiên.")]
+        [SerializeField] private bool forceSameHeight = true;
+        
+        private HashSet<ulong> _readyPlayers = new HashSet<ulong>();
+        private HashSet<ulong> _spawnedPlayers = new HashSet<ulong>();
+        private bool _isSpawningFinished = false;
+
+        private void Awake()
+        {
+            Instance = this;
+        }
 
         public override void OnNetworkSpawn()
         {
             if (!IsServer) return;
+            _readyPlayers.Clear();
+            _spawnedPlayers.Clear();
+            _isSpawningFinished = false;
+        }
 
-            NetworkManager.Singleton.OnClientConnectedCallback += HandleClientConnected;
-            
-            // Xử lý Host và toàn bộ Client hiện có nếu PlayerSpawner này được tạo ra sau khi họ kết nối (ví dụ khi chuyển cảnh)
-            foreach (var clientId in NetworkManager.Singleton.ConnectedClientsIds)
+        /// <summary>
+        /// Được gọi từ NGOPlayerSync qua ServerRpc khi một client đã nạp xong scene.
+        /// </summary>
+        public void ReportPlayerReady(ulong clientId)
+        {
+            if (!IsServer || _isSpawningFinished) return;
+
+            Debug.Log($"[PlayerSpawner] Player {clientId} reported READY.");
+            _readyPlayers.Add(clientId);
+
+            // Kiểm tra xem đã đủ tất cả người chơi trong session hiện tại chưa
+            if (_readyPlayers.Count >= NetworkManager.Singleton.ConnectedClientsList.Count)
             {
-                HandleClientConnected(clientId);
+                StartCoroutine(ExecuteSynchronizedSpawn());
             }
         }
 
-        public override void OnNetworkDespawn()
+        private System.Collections.IEnumerator ExecuteSynchronizedSpawn()
         {
-            if (NetworkManager.Singleton != null)
+            _isSpawningFinished = true;
+            Debug.Log("<color=green>[PlayerSpawner] ALL PLAYERS READY. Executing synchronized teleport...</color>");
+
+            // 1. Sắp xếp danh sách người chơi để gán spawn point cố định
+            var clientIds = new List<ulong>(_readyPlayers);
+            clientIds.Sort();
+
+            // 2. Thực hiện Teleport cho từng người
+            for (int i = 0; i < clientIds.Count; i++)
             {
-                NetworkManager.Singleton.OnClientConnectedCallback -= HandleClientConnected;
-            }
-        }
-
-        private void HandleClientConnected(ulong clientId)
-        {
-            if (!IsServer) return;
-            if (processedClients.Contains(clientId)) return;
-
-            StartCoroutine(DelayedSpawn(clientId));
-        }
-
-        private System.Collections.IEnumerator DelayedSpawn(ulong clientId)
-        {
-            // Đợi đến khi PlayerObject của client này thực sự được tạo ra trên Server
-            float timeout = 3f;
-            while (timeout > 0)
-            {
-                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) && client.PlayerObject != null)
+                ulong id = clientIds[i];
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(id, out var client) && client.PlayerObject != null)
                 {
-                    // Tìm component NGOPlayerSync trên PlayerObject
                     if (client.PlayerObject.TryGetComponent<NGOPlayerSync>(out var playerSync))
                     {
-                        // Xác định vị trí spawn dựa trên thứ tự kết nối hiện tại
-                        var clientIds = new List<ulong>(NetworkManager.Singleton.ConnectedClientsIds);
-                        int spawnIndex = clientIds.IndexOf(clientId);
+                        int spawnIndex = i % spawnPoints.Length;
+                        Vector3 spawnPos = spawnPoints[spawnIndex].position;
                         
-                        if (spawnIndex == -1) spawnIndex = 0; // Fallback
-                        spawnIndex = spawnIndex % spawnPoints.Length;
-                        
-                        processedClients.Add(clientId);
-
-                        if (spawnPoints.Length > spawnIndex)
+                        if (forceSameHeight && spawnPoints.Length > 0)
                         {
-                            Transform target = spawnPoints[spawnIndex];
-                            
-                            // Gọi hàm Teleport của Player - Hàm này sẽ tự động lo việc đồng bộ qua ClientRpc
-                            playerSync.Teleport(target.position, target.rotation);
-                            
-                            Debug.Log($"[PlayerSpawner] Player {clientId} assigned to SpawnPoint {spawnIndex}");
+                            spawnPos.y = spawnPoints[0].position.y;
                         }
-                        yield break;
+
+                        playerSync.Teleport(spawnPos, spawnPoints[spawnIndex].rotation);
                     }
                 }
-                
-                yield return null;
-                timeout -= Time.deltaTime;
             }
-            
-            Debug.LogWarning($"[PlayerSpawner] Timeout waiting for player {clientId} to spawn.");
+
+            // 3. Đợi vài frame để đảm bảo lệnh Teleport đã tới Client và Physics đã ổn định
+            yield return new WaitForSeconds(0.5f);
+
+            // 4. Ra lệnh cho tất cả người chơi mở khóa (Thaw) và mở màn hình FadeOut
+            foreach (var id in clientIds)
+            {
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(id, out var client) && client.PlayerObject != null)
+                {
+                    if (client.PlayerObject.TryGetComponent<NGOPlayerSync>(out var playerSync))
+                    {
+                        playerSync.ReleasePlayerClientRpc();
+                    }
+                }
+            }
+
+            // 5. Mở màn hình Loading
+            if (LoadingSyncManager.Instance != null)
+            {
+                LoadingSyncManager.Instance.EndLoadingFadeClientRpc();
+            }
         }
     }
 }

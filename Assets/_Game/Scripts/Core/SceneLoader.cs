@@ -76,12 +76,10 @@ public class SceneLoader : MonoBehaviour
             yield return null;
         }
 
-        // Đã xong! Báo cho tất cả Client mở màn hình đen
-        Debug.Log("<color=green>[HOST] All clients ready! Syncing FadeOut...</color>");
-        if (LoadingSyncManager.Instance != null)
-        {
-            LoadingSyncManager.Instance.EndLoadingFadeClientRpc();
-        }
+        // Đã xong phần Load Scene! 
+        // LƯU Ý: Chúng ta KHÔNG gọi LoadingSyncManager.Instance.EndLoadingFadeClientRpc() ở đây nữa.
+        // Quyền này sẽ được nhường cho PlayerSpawner sau khi nó đã Teleport toàn bộ người chơi xong.
+        Debug.Log("<color=green>[HOST] Scene loaded. Waiting for PlayerSpawner to position everyone...</color>");
 
         if (_gameStateMachine != null) _gameStateMachine.TransitionTo(GameState.Playing);
     }

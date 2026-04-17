@@ -40,8 +40,9 @@ namespace Networking.LobbySystem
                 if (IsServer) AssignSlotServerRpc();
             }
             else {
-                // Đang vào Game trực tiếp (không qua Lobby) hoặc Spawn lại
-                EnableMovement();
+                // ĐANG VÀO GAME: KHÔNG ĐƯỢC BẬT MOVEMENT! 
+                // PHẢI KHÓA LẠI CHỜ TELEPORT
+                DisableMovementPermanently(); 
                 if (IsOwner) StartCoroutine(InitialSpawnCoroutine(0.1f));
             }
 
@@ -55,8 +56,19 @@ namespace Networking.LobbySystem
             }
         }
 
+        public override void OnNetworkDespawn()
+        {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+            {
+                NetworkManager.Singleton.SceneManager.OnLoadComplete -= HandleLoadComplete;
+            }
+        }
+
         private void HandleLoadComplete(ulong clientId, string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode)
         {
+            // CHỈ XỬ LÝ NẾU LÀ CHÍNH MÁY NÀY LOAD XONG
+            if (clientId != NetworkManager.Singleton.LocalClientId) return;
+
             _isInLobby = sceneName.Contains("Lobby");
             
             // KHÓA VẬT LÝ NGAY LẬP TỨC ĐỂ CHỜ TELEPORT
@@ -77,21 +89,36 @@ namespace Networking.LobbySystem
 
         private IEnumerator InitialSpawnCoroutine(float delay)
         {
-            yield return new WaitForSeconds(delay);
-            TeleportToSpawn();
+            // Tăng delay lên một chút để chắc chắn Spawner đã chạy xong
+            yield return new WaitForSeconds(0.2f);
+            
+            if (!_isInLobby) 
+            {
+                TeleportToSpawn();
+                // Đợi thêm vài frame vật lý để Netcode ổn định vị trí mới
+                for(int i=0; i<10; i++) yield return new WaitForFixedUpdate();
+            }
+            
             EnableMovement(); 
         }
 
         private IEnumerator FinalEnforcementCoroutine()
         {
+            // Chỉ chạy cái này nếu thực sự cần thiết, nhưng hãy kiểm tra kỹ isInLobby
             yield return new WaitForSeconds(2.1f);
-            Debug.Log("[LobbySlot] FINAL ENFORCEMENT: Re-teleporting to ensure Netcode stability.");
-            TeleportToSpawn();
-            EnableMovement();
+            if (!_isInLobby && this.enabled) 
+            {
+                Debug.Log("[LobbySlot] FINAL ENFORCEMENT: Re-teleporting to ensure Netcode stability.");
+                TeleportToSpawn();
+                EnableMovement();
+            }
         }
 
         private void TeleportToSpawn()
         {
+            // Đảm bảo không teleport bừa bãi nếu đang ở trong Lobby
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby")) return;
+
             Vector3 spawnPos = transform.position;
             string spawnTagName = $"SpawnPoint_{LobbySlotIndex.Value}";
             GameObject spawnPoint = GameObject.Find(spawnTagName);
@@ -105,7 +132,12 @@ namespace Networking.LobbySystem
                 } else {
                     transform.position = spawnPos;
                 }
+                Debug.Log($"[LobbySlot] Teleported to {spawnPoint.name} at {spawnPos}");
             }
+            else {
+                Debug.LogWarning("[LobbySlot] No valid spawn point found for teleport!");
+            }
+
 
             var initializer = GetComponent<PlayerCameraInitializer>();
             if (initializer != null) {
@@ -154,23 +186,31 @@ namespace Networking.LobbySystem
             var clientIds = NetworkManager.Singleton.ConnectedClientsIds.ToList();
             int slot = clientIds.IndexOf(OwnerClientId);
             if (slot != -1) LobbySlotIndex.Value = slot;
+            
+            // Xếp chỗ đứng 1 LẦN DUY NHẤT trên Server/Client, không chạy trong Update
+            FixPositionOnce();
         }
 
-        private void Update()
+        private void FixPositionOnce()
         {
-            if (!_isInLobby) return;
-            if (LobbySlotIndex.Value != -1) FixPosition();
-        }
+            if (!UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby")) return;
 
-        private void FixPosition()
-        {
             var anchors = GameObject.FindGameObjectsWithTag("LobbyAnchor").OrderBy(a => a.name).ToList();
             if (anchors.Count == 0) return;
+            
             int anchorIndex = LobbySlotIndex.Value % anchors.Count;
+            if (anchorIndex < 0) return;
+            
             GameObject targetAnchor = anchors[anchorIndex];
-            transform.position = targetAnchor.transform.position + Vector3.up * 0.5f;
-            transform.rotation = targetAnchor.transform.rotation;
+            if (targetAnchor != null)
+            {
+                transform.position = targetAnchor.transform.position + Vector3.up * 0.5f;
+                transform.rotation = targetAnchor.transform.rotation;
+                Debug.Log($"[LobbySlot] Set player {OwnerClientId} to anchor {anchorIndex} ONCE.");
+            }
         }
+
+        // Đã XÓA HOÀN TOÀN hàm Update() và FixPosition() lặp đi lặp lại để trị dứt điểm lỗi giật lag vị trí.
 
         private void ApplyVisual(int index)
         {
