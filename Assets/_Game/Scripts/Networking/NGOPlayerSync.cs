@@ -37,6 +37,11 @@ public class NGOPlayerSync : NetworkBehaviour
         ApplyNetcodeDefaults();
     }
 
+    private bool IsTestMode() 
+    {
+        return Networking.LobbySystem.LobbyManager.Instance == null || string.IsNullOrEmpty(Networking.LobbySystem.LobbyManager.Instance.GetPlayerId());
+    }
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -45,15 +50,15 @@ public class NGOPlayerSync : NetworkBehaviour
             NetworkManager.Singleton.SceneManager.OnLoadComplete += HandleSceneLoaded;
         }
 
-        // Mặc định đóng băng khi mới sinh ra
-        _isFrozenBySystem = true;
+        // Mặc định đóng băng khi mới sinh ra (trừ khi đang test map trực tiếp)
+        _isFrozenBySystem = !IsTestMode();
         _hasReceivedInitialTeleport = false;
         ApplyAuthorityState();
         
         _hasAppliedSpawnState = true;
 
         // Nếu là Owner, hãy báo cáo cho Server ngay khi Spawn
-        if (IsOwner)
+        if (IsOwner && !IsTestMode())
         {
             ReportReadyToServerRpc();
         }
@@ -72,12 +77,12 @@ public class NGOPlayerSync : NetworkBehaviour
     {
         if (clientId != NetworkManager.Singleton.LocalClientId) return;
 
-        // Khi nạp cảnh mới, đóng băng ngay lập tức
-        _isFrozenBySystem = true;
+        // Khi nạp cảnh mới, đóng băng ngay lập tức (trừ khi test map)
+        _isFrozenBySystem = !IsTestMode();
         ApplyAuthorityState();
 
         // Báo cho Server biết tôi đã nạp xong Map
-        if (IsOwner)
+        if (IsOwner && !IsTestMode())
         {
             ReportReadyToServerRpc();
         }

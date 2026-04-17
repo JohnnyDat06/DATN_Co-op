@@ -25,6 +25,11 @@ namespace Networking.LobbySystem
         private static int _localSelectedCharacterIndex = 0;
         private bool _isInLobby = true;
 
+        private bool IsTestMode() 
+        {
+            return LobbyManager.Instance == null || string.IsNullOrEmpty(LobbyManager.Instance.GetPlayerId());
+        }
+
         public override void OnNetworkSpawn()
         {
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -40,10 +45,16 @@ namespace Networking.LobbySystem
                 if (IsServer) AssignSlotServerRpc();
             }
             else {
-                // ĐANG VÀO GAME: KHÔNG ĐƯỢC BẬT MOVEMENT! 
-                // PHẢI KHÓA LẠI CHỜ TELEPORT
-                DisableMovementPermanently(); 
-                if (IsOwner) StartCoroutine(InitialSpawnCoroutine(0.1f));
+                if (IsTestMode()) {
+                    // CHẾ ĐỘ TEST: Teleport trước rồi mở khóa ngay lập tức để không bị kẹt Kinematic
+                    Debug.Log("<color=cyan>[LobbyPlayerState] TEST MODE: Teleporting and Unlocking...</color>");
+                    TeleportToSpawn();
+                    EnableMovement(); 
+                } else {
+                    // CHẾ ĐỘ LOBBY: Khóa lại để chờ quy trình chuẩn
+                    DisableMovementPermanently(); 
+                    if (IsOwner) StartCoroutine(InitialSpawnCoroutine(0.1f));
+                }
             }
 
             CharacterIndex.OnValueChanged += (oldVal, newVal) => ApplyVisual(newVal);
@@ -51,8 +62,13 @@ namespace Networking.LobbySystem
             if (IsOwner)
             {
                 SetCharacterServerRpc(_localSelectedCharacterIndex);
-                string nameFromLobby = LobbyManager.Instance.GetPlayerName();
-                if (!string.IsNullOrEmpty(nameFromLobby)) SetPlayerNameServerRpc(nameFromLobby);
+                
+                // Set tên: Nếu có Lobby thì lấy từ Lobby, nếu không thì đặt tên Tester
+                if (!IsTestMode() && !string.IsNullOrEmpty(LobbyManager.Instance.GetPlayerName())) {
+                    SetPlayerNameServerRpc(LobbyManager.Instance.GetPlayerName());
+                } else {
+                    SetPlayerNameServerRpc("Tester_" + OwnerClientId);
+                }
             }
         }
 
@@ -71,6 +87,9 @@ namespace Networking.LobbySystem
 
             _isInLobby = sceneName.Contains("Lobby");
             
+            // NẾU LÀ TEST MODE: BỎ QUA VIỆC KHÓA NHÂN VẬT KHI LOAD SCENE
+            if (IsTestMode()) return;
+
             // KHÓA VẬT LÝ NGAY LẬP TỨC ĐỂ CHỜ TELEPORT
             if (TryGetComponent<Rigidbody>(out var rb)) {
                 rb.isKinematic = true;
@@ -120,13 +139,18 @@ namespace Networking.LobbySystem
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby")) return;
 
             Vector3 spawnPos = transform.position;
-            string spawnTagName = $"SpawnPoint_{LobbySlotIndex.Value}";
-            GameObject spawnPoint = GameObject.Find(spawnTagName);
             
+            // 1. Tìm theo Slot ID (Lobby flow)
+            GameObject spawnPoint = GameObject.Find($"SpawnPoint_{LobbySlotIndex.Value}");
+            
+            // 2. Nếu không có, tìm object tên "PlayerSpawner" (Test flow)
+            if (spawnPoint == null) spawnPoint = GameObject.Find("PlayerSpawner");
+
+            // 3. Nếu vẫn không có, tìm theo Tag Respawn mặc định của Unity
             if (spawnPoint == null) spawnPoint = GameObject.FindGameObjectWithTag("Respawn");
 
             if (spawnPoint != null) {
-                spawnPos = spawnPoint.transform.position + Vector3.up * 0.3f;
+                spawnPos = spawnPoint.transform.position + Vector3.up * 0.5f;
                 if (TryGetComponent<NGOPlayerSync>(out var sync)) {
                     sync.Teleport(spawnPos, spawnPoint.transform.rotation);
                 } else {
@@ -149,9 +173,10 @@ namespace Networking.LobbySystem
         private void EnableMovement()
         {
             if (TryGetComponent<Rigidbody>(out var rb)) {
-                rb.isKinematic = false;
-                rb.useGravity = true;
+                rb.isKinematic = false; // Tắt Kinematic triệt để
+                rb.useGravity = true;   // Bật Gravity
                 rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
                 rb.interpolation = RigidbodyInterpolation.Interpolate;
                 rb.constraints = RigidbodyConstraints.FreezeRotation;
             }
@@ -166,6 +191,8 @@ namespace Networking.LobbySystem
             if (TryGetComponent<PlayerController>(out var pc)) pc.enabled = true;
             if (TryGetComponent<PlayerStateMachine>(out var psm)) psm.enabled = true;
             if (TryGetComponent<CapsuleCollider>(out var col)) col.enabled = true;
+            
+            Debug.Log("[LobbyPlayerState] MOVEMENT UNLOCKED: Kinematic is FALSE.");
         }
 
         private void DisableMovementPermanently()
