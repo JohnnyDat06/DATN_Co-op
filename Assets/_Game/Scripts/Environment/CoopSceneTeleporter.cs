@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -92,20 +93,35 @@ public class CoopSceneTeleporter : NetworkBehaviour
         if (_playersInside.Count >= requiredPlayers && requiredPlayers > 0)
         {
             _isTransitioning = true;
-            Debug.Log($"<color=green>[CoopSceneTeleporter] ĐỦ ĐIỀU KIỆN! Bắt đầu load scene: {_nextSceneName}</color>");
-            
-            var loader = FindFirstObjectByType<SceneLoader>();
-            if (loader != null)
-            {
-                Debug.Log("[CoopSceneTeleporter] Đang gọi SceneLoader.LoadScene...");
-                loader.LoadScene(_nextSceneName);
-            }
-            else
-            {
-                Debug.LogWarning("[CoopSceneTeleporter] Không thấy SceneLoader, gọi trực tiếp NetworkSceneManager.");
-                var status = NetworkManager.SceneManager.LoadScene(_nextSceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
-                Debug.Log($"[CoopSceneTeleporter] NetworkSceneManager.LoadScene status: {status}");
-            }
+            StartCoroutine(TransitionCoroutine());
+        }
+    }
+
+    private IEnumerator TransitionCoroutine()
+    {
+        Debug.Log($"<color=green>[CoopSceneTeleporter] ĐỦ ĐIỀU KIỆN! Khởi động hiệu ứng Loading...</color>");
+
+        // 1. Kích hoạt hiệu ứng Fade In (Màn hình đen/Loading) trên toàn bộ Client
+        if (LoadingSyncManager.Instance != null)
+        {
+            LoadingSyncManager.Instance.StartLoadingFadeClientRpc();
+        }
+
+        // 2. Đợi một chút để màn hình kịp mờ hẳn (giống bên LobbyManager)
+        yield return new WaitForSecondsRealtime(0.8f);
+
+        Debug.Log($"<color=green>[CoopSceneTeleporter] Bắt đầu load scene: {_nextSceneName}</color>");
+
+        // 3. Thực hiện load scene thông qua SceneLoader
+        var loader = FindFirstObjectByType<SceneLoader>();
+        if (loader != null)
+        {
+            loader.LoadScene(_nextSceneName);
+        }
+        else
+        {
+            Debug.LogWarning("[CoopSceneTeleporter] Không thấy SceneLoader, gọi trực tiếp NetworkSceneManager.");
+            NetworkManager.SceneManager.LoadScene(_nextSceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
         }
     }
 
