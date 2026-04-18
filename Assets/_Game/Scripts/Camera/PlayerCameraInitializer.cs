@@ -46,8 +46,9 @@ public class PlayerCameraInitializer : NetworkBehaviour
             _cameraLookTarget = FindLookTargetRecursive(transform);
         }
 
-        // Gán target cho CameraManager (Singleton cục bộ trên máy này)
-        CameraManager.Instance.SetPlayerTarget(transform, _cameraLookTarget);
+        // Gán target cho CameraManager (Ưu tiên dùng _cameraLookTarget cho cả Follow và LookAt nếu có)
+        Transform targetToUse = _cameraLookTarget != null ? _cameraLookTarget : transform;
+        CameraManager.Instance.SetPlayerTarget(targetToUse, targetToUse);
 
         // Setup cursor mặc định
         Cursor.lockState = CursorLockMode.Locked;

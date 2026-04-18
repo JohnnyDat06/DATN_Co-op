@@ -164,7 +164,7 @@ namespace Networking.LobbySystem
 
 
             var initializer = GetComponent<PlayerCameraInitializer>();
-            if (initializer != null) {
+            if (IsOwner && initializer != null) {
                 initializer.StopAllCoroutines();
                 initializer.StartCoroutine("InitializeCameraRoutine");
             }
