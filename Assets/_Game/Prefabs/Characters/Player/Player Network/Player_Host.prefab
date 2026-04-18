@@ -3771,7 +3771,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &3331679271331974605
 Transform:
   m_ObjectHideFlags: 0
@@ -5563,6 +5563,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _attackHitbox: {fileID: 7235842231928995339}
   _comboController: {fileID: 4393955296312547137}
+  _footstepClips:
+  - {fileID: 11400000, guid: 7b76428f7b9c6f14586d5be06b414ee2, type: 2}
+  - {fileID: 11400000, guid: 6c2e910a0eec79647b86239763a0d18d, type: 2}
+  - {fileID: 11400000, guid: 291442102a013ac43b37e2b9d871aebf, type: 2}
 --- !u!114 &4810457772248123075
 MonoBehaviour:
   m_ObjectHideFlags: 0

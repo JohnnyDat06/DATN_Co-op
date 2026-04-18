@@ -1059,6 +1059,10 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 3912625263
       objectReference: {fileID: 0}
+    - target: {fileID: 694043317380070603, guid: c5f141f8dd294564faa41a06e0d4ff29, type: 3}
+      propertyPath: field of view
+      value: 45
+      objectReference: {fileID: 0}
     - target: {fileID: 3460051315115231480, guid: c5f141f8dd294564faa41a06e0d4ff29, type: 3}
       propertyPath: m_Name
       value: = CORE =
@@ -3546,6 +3550,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _hostSlider: {fileID: 0}
   _clientSlider: {fileID: 0}
+  _hostNameText: {fileID: 0}
+  _clientNameText: {fileID: 0}
   _hostBarRoot: {fileID: 0}
   _clientBarRoot: {fileID: 0}
   _smoothSpeed: 5
@@ -10761,13 +10767,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: PlayerCamera
       objectReference: {fileID: 0}
-    - target: {fileID: 2080821252784823089, guid: 317ed35333fc9654ab5e00d259a7c961, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 3726073940089853645, guid: 317ed35333fc9654ab5e00d259a7c961, type: 3}
-      propertyPath: VerticalAxis.Range.y
-      value: 80
+    - target: {fileID: 4578075683349990374, guid: 317ed35333fc9654ab5e00d259a7c961, type: 3}
+      propertyPath: field of view
+      value: 45
       objectReference: {fileID: 0}
     - target: {fileID: 5699673431772898847, guid: 317ed35333fc9654ab5e00d259a7c961, type: 3}
       propertyPath: m_LocalPosition.x

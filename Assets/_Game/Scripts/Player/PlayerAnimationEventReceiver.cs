@@ -16,6 +16,9 @@ public class PlayerAnimationEventReceiver : MonoBehaviour
     [Tooltip("Gắn vào AttackComboController trên Player root")]
     [SerializeField] private AttackComboController _comboController;
 
+    [Header("Audio")]
+    [SerializeField] private List<SOAudioClip> _footstepClips;
+
     private readonly List<AttackHitbox> _attackHitboxes = new();
 
     private void Awake()
@@ -51,7 +54,18 @@ public class PlayerAnimationEventReceiver : MonoBehaviour
             _attackHitbox = _attackHitboxes[0];
     }
 
-    // ─── Gọi bởi Animation Event trên Attack Clips ───────────────
+    // ─── Gọi bởi Animation Event trên Clips ───────────────
+
+    /// <summary>
+    /// Phát âm thanh bước chân.
+    /// Animation Event → Function: "PlayFootstep"
+    /// </summary>
+    public void PlayFootstep()
+    {
+        if (_footstepClips == null || _footstepClips.Count == 0) return;
+        int index = Random.Range(0, _footstepClips.Count);
+        AudioManager.Instance.PlaySFX(_footstepClips[index], transform.position);
+    }
 
     /// <summary>
     /// Kích hoạt hitbox — gọi tại frame cú đấm bắt đầu tiếp xúc.
