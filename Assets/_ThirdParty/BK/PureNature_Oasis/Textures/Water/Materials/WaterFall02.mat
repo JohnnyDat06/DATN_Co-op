@@ -174,7 +174,7 @@ Material:
     - _QueueOffset: 0
     - _ReceiveShadows: 1
     - _RefractionPower: 2.5
-    - _SmoothnessPower: 1
+    - _SmoothnessPower: 0.546
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
