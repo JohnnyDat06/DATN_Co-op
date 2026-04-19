@@ -4413,6 +4413,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
   _maxHealth: 100
+  _healthBarUI: {fileID: 5586816443816572318}
+  _gravity: 9.81
+  _groundLayer:
+    serializedVersion: 2
+    m_Bits: 65
   CurrentHealth:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
@@ -4484,12 +4489,14 @@ MonoBehaviour:
     rid: -2
   BlackboardIsDetected:
     rid: -2
+  _playerVariableName: Player
+  _detectedVariableName: IsDetected
   _rotationSpeed: 360
   _targetLayer:
     serializedVersion: 2
     m_Bits: 8
   _radius: 1.24
-  _damage: 20
+  _damage: 12
   _projectilePrefab: {fileID: 8980800682380711659, guid: 0225405b17d249a4e858cc09dfd82733, type: 3}
   _firePoint: {fileID: 7857823338348770790}
   references:
