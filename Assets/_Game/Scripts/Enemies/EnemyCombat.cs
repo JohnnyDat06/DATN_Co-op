@@ -27,6 +27,10 @@ public class EnemyCombat : NetworkBehaviour
     [SerializeReference] public BlackboardVariable<GameObject> BlackboardTarget;
     [SerializeReference] public BlackboardVariable<bool> BlackboardIsDetected;
 
+    [Header("Behavior Graph Settings (Auto-Link)")]
+    [SerializeField] private string _playerVariableName = "Player";
+    [SerializeField] private string _detectedVariableName = "IsDetected";
+
     [Header("Combat Settings")]
     [SerializeField] private float _rotationSpeed = 360f;
 
@@ -39,8 +43,14 @@ public class EnemyCombat : NetworkBehaviour
     [SerializeField] private GameObject _projectilePrefab;
     [SerializeField] private Transform _firePoint;
 
+    private BehaviorGraphAgent _agent;
     private float _activeTimer = 0f;
     private readonly HashSet<Collider> _hitHistory = new HashSet<Collider>();
+
+    private void Awake()
+    {
+        _agent = GetComponent<BehaviorGraphAgent>();
+    }
 
     private void Update()
     {
@@ -63,19 +73,43 @@ public class EnemyCombat : NetworkBehaviour
 
     private void UpdateTargetFromBlackboard()
     {
+        // 1. Cập nhật Target (Mục tiêu)
         if (BlackboardTarget != null && BlackboardTarget.Value != null)
         {
             Target = BlackboardTarget.Value;
         }
+        else if (_agent != null)
+        {
+            // Fallback: Tìm theo tên trong Blackboard sử dụng API GetVariable
+            if (_agent.GetVariable(_playerVariableName, out BlackboardVariable<GameObject> playerVar))
+            {
+                Target = playerVar != null ? playerVar.Value : null;
+            }
+        }
         
+        // 2. Cập nhật Trạng thái phát hiện
+        bool currentDetection = false;
+        bool hasDetectionSource = false;
+
         if (BlackboardIsDetected != null)
         {
-            // Chỉ gán khi giá trị thay đổi để tối ưu băng thông mạng và đảm bảo trigger OnValueChanged
-            if (IsDetected.Value != BlackboardIsDetected.Value)
+            currentDetection = BlackboardIsDetected.Value;
+            hasDetectionSource = true;
+        }
+        else if (_agent != null)
+        {
+            // Fallback: Tìm theo tên trong Blackboard sử dụng API GetVariable
+            if (_agent.GetVariable(_detectedVariableName, out BlackboardVariable<bool> detectedVar))
             {
-                IsDetected.Value = BlackboardIsDetected.Value;
-                Debug.Log($"[EnemyCombat] Detection state changed to: {IsDetected.Value}");
+                currentDetection = detectedVar != null ? detectedVar.Value : false;
+                hasDetectionSource = true;
             }
+        }
+
+        if (hasDetectionSource && IsDetected.Value != currentDetection)
+        {
+            IsDetected.Value = currentDetection;
+            Debug.Log($"[EnemyCombat] {gameObject.name} detection state changed to: {IsDetected.Value}");
         }
     }
 

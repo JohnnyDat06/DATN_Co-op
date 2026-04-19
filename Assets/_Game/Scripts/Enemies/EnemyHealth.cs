@@ -1,6 +1,7 @@
 using System;
 using Unity.Netcode;
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// Lớp cơ sở (Base Class) chung cho mọi Enemy trong game.
@@ -13,6 +14,13 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
     [SerializeField] protected int _maxHealth = 100;
     public int MaxHealth => _maxHealth;
 
+    [Header("UI References")]
+    [SerializeField] protected GameObject _healthBarUI;
+
+    [Header("Death Fall Settings")]
+    [SerializeField] private float _gravity = 9.81f;
+    [SerializeField] private LayerMask _groundLayer;
+
     // Biến đồng bộ qua mạng. Server có quyền Ghi, mọi Client đều tự động Đọc (Sync).
     public NetworkVariable<int> CurrentHealth = new NetworkVariable<int>(
         100, 
@@ -23,6 +31,8 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
     // Sự kiện nội bộ trên client để UI thanh máu giật/đỏ lên hoặc AI phản ứng cục bộ
     public event Action<int, int> OnHealthChanged; // (oldValue, newValue)
     public event Action OnDeath;
+
+    protected bool _isDead = false;
 
     public override void OnNetworkSpawn()
     {
@@ -58,7 +68,7 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
     public virtual void TakeDamage(int damage, Vector3 hitPoint, Vector3 hitNormal, ulong instigatorClientId)
     {
         // Tránh quái đã chết vẫn ăn chém
-        if (CurrentHealth.Value <= 0) return;
+        if (CurrentHealth.Value <= 0 || _isDead) return;
 
         if (IsServer)
         {
@@ -67,12 +77,10 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
         else
         {
             // Client gọi RPC lên Server báo "Tao chém trúng quái này rồi!"
-            // Gửi RequreOwnership = false vì Client KHÔNG LÀ CHỦ của Enemy này
             TakeDamageServerRpc(damage, instigatorClientId);
         }
     }
 
-    //[ServerRpc(RequireOwnership = false)]
     [Rpc(SendTo.Server, RequireOwnership = false)]
     private void TakeDamageServerRpc(int damage, ulong instigatorClientId)
     {
@@ -84,7 +92,7 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
     /// </summary>
     protected virtual void ApplyDamage(int damage, ulong instigatorClientId)
     {
-        if (CurrentHealth.Value <= 0) return;
+        if (CurrentHealth.Value <= 0 || _isDead) return;
 
         // Server update state
         CurrentHealth.Value = Mathf.Max(0, CurrentHealth.Value - damage);
@@ -95,18 +103,117 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
 
     /// <summary>
     /// Bắt buộc đám Enemy con (Slime, Skeleton, Boss) phải tự override lại mình làm gì khi bị đập.
-    /// (Ví dụ: Skeleton thì rụng xương, AI chuyển sang mode Hunt).
     /// </summary>
     protected abstract void OnDamagedServerSide(int damage, ulong instigatorClientId);
 
     /// <summary>
     /// Xử lý Die.
-    /// Bọn đệ có thể Drop Item, phát âm thanh chết, Raggdoll...
     /// </summary>
     protected virtual void Die()
     {
+        if (_isDead) return;
+        _isDead = true;
+
         OnDeath?.Invoke();
-        
-        if (IsServer) GetComponent<NetworkObject>().Despawn();
+
+        // 1. Phát anim chết (Trigger "Die")
+        if (TryGetComponent<Animator>(out var anim))
+        {
+            anim.SetTrigger("IsDead");
+        }
+
+        // 2. Ẩn thanh máu UI
+        if (_healthBarUI != null)
+        {
+            _healthBarUI.SetActive(false);
+        }
+
+        // 3. Tắt các logic cục bộ (Dành cho cả Client và Server)
+        DisableLogic();
+
+        // 4. Bắt đầu rơi bằng code (Chỉ thực hiện trên Server để đồng bộ vị trí chuẩn)
+        if (IsServer)
+        {
+            StartCoroutine(DeathFallCoroutine());
+            
+            // 5. Đợi 3 giây rồi mới Despawn (Chỉ chạy trên Server)
+            Invoke(nameof(DespawnEnemy), 3f);
+        }
+    }
+
+    private void DisableLogic()
+    {
+        // Tắt AI
+        if (TryGetComponent<Unity.Behavior.BehaviorGraphAgent>(out var agent))
+        {
+            agent.enabled = false;
+        }
+
+        // Tắt NavMeshAgent (Dừng dẫn đường)
+        var nav = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (nav != null)
+        {
+            if (nav.isOnNavMesh) nav.isStopped = true;
+            nav.enabled = false;
+        }
+
+        // Tắt script di chuyển
+        var move = GetComponent<EnemyMovement>();
+        if (move != null)
+        {
+            move.enabled = false;
+        }
+
+        // Tắt Root Motion để không bị trượt theo anim
+        var anim = GetComponent<Animator>();
+        if (anim != null)
+        {
+            anim.applyRootMotion = false;
+        }
+
+        // Đổi Layer sang "Ignore Raycast" để Player đi xuyên qua
+        gameObject.layer = LayerMask.NameToLayer("Ignore Raycast");
+
+        // Tắt va chạm hoàn toàn hoặc chuyển sang Trigger
+        var col = GetComponent<Collider>();
+        if (col != null)
+        {
+            col.enabled = false;
+        }
+    }
+
+    private IEnumerator DeathFallCoroutine()
+    {
+        float verticalVelocity = 0;
+        float fallDuration = 2.5f; // Giới hạn thời gian rơi tối đa
+        float elapsed = 0;
+
+        while (elapsed < fallDuration)
+        {
+            elapsed += Time.deltaTime;
+            verticalVelocity -= _gravity * Time.deltaTime;
+            Vector3 move = new Vector3(0, verticalVelocity * Time.deltaTime, 0);
+
+            // Kiểm tra mặt đất bằng Raycast
+            // Bắn tia từ giữa quái xuống dưới
+            float rayLength = 0.2f; 
+            if (Physics.Raycast(transform.position + Vector3.up * 0.1f, Vector3.down, out RaycastHit hit, rayLength, _groundLayer))
+            {
+                // Chạm đất -> Dừng rơi và bám sát mặt đất
+                transform.position = hit.point;
+                yield break;
+            }
+
+            transform.position += move;
+            yield return null;
+        }
+    }
+
+    private void DespawnEnemy()
+    {
+        if (IsServer && NetworkObject != null && NetworkObject.IsSpawned)
+        {
+            NetworkObject.Despawn();
+        }
     }
 }
