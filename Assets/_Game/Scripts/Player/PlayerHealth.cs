@@ -11,6 +11,7 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
 {
     [SerializeField] private SOPlayerConfig _config;
     [SerializeField] private PlayerStateMachine _fsm;
+    [SerializeField] private PlayerAnimator _playerAnimator;
 
     /// <summary>Máu hiện tại được đồng bộ qua mạng.</summary>
     public NetworkVariable<float> NetworkHealth = new NetworkVariable<float>(100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -36,6 +37,10 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
         if (_fsm == null)
         {
             _fsm = GetComponent<PlayerStateMachine>();
+        }
+        if (_playerAnimator == null)
+        {
+            _playerAnimator = GetComponent<PlayerAnimator>();
         }
     }
 
@@ -63,6 +68,20 @@ public class PlayerHealth : NetworkBehaviour, IDamageable
     private void OnHealthNetworkChanged(float oldVal, float newVal)
     {
         OnHealthChanged?.Invoke(newVal, MaxHealth);
+        
+        // Nếu máu giảm (nhưng chưa chết), kích hoạt animation hit trên mọi client
+        if (newVal < oldVal && newVal > 0)
+        {
+            TriggerHitAnimation();
+        }
+    }
+
+    private void TriggerHitAnimation()
+    {
+        if (_playerAnimator != null)
+        {
+            _playerAnimator.TriggerHit();
+        }
     }
 
     /// <summary>Gây sát thương. Chỉ Server mới có quyền thay đổi NetworkVariable.</summary>
