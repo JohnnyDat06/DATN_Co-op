@@ -25,7 +25,7 @@ public class PlayerAnimator : MonoBehaviour
     private static readonly int IS_GROUNDED          = Animator.StringToHash("IsGrounded");
     private static readonly int IS_CROUCHING         = Animator.StringToHash("IsCrouching");
     private static readonly int IS_GLIDING           = Animator.StringToHash("IsGliding");
-    private static readonly int IS_DEAD              = Animator.StringToHash("IsDead");
+    private static readonly int PLAYER_DEATH         = Animator.StringToHash("Player_Death");
     private static readonly int JUMP_BOOL            = Animator.StringToHash("Jump");
     private static readonly int FREE_FALL_BOOL       = Animator.StringToHash("FreeFall");
     private static readonly int DJUMP_TRIGGER        = Animator.StringToHash("DoubleJumpTrigger");
@@ -39,7 +39,7 @@ public class PlayerAnimator : MonoBehaviour
     private static readonly int ATTACK2_TRIGGER      = Animator.StringToHash("Attack2Trigger");
     private static readonly int ATTACK3_TRIGGER      = Animator.StringToHash("Attack3Trigger");
     private static readonly int ATTACK_COUNT         = Animator.StringToHash("AttackCount");
-    private static readonly int HURT_TRIGGER         = Animator.StringToHash("Hurt");
+    private static readonly int PLAYER_HIT           = Animator.StringToHash("Player_Hit");
 
     private void Awake()
     {
@@ -126,7 +126,7 @@ public class PlayerAnimator : MonoBehaviour
         _animator.SetBool(IS_GROUNDED, isGrounded);
         _animator.SetBool(IS_CROUCHING, currentState is PlayerStateType.CrouchIdle or PlayerStateType.CrouchWalk);
         _animator.SetBool(IS_GLIDING,   currentState == PlayerStateType.AirGlide);
-        _animator.SetBool(IS_DEAD,      currentState == PlayerStateType.Dead);
+        _animator.SetBool(PLAYER_DEATH, currentState == PlayerStateType.Dead);
 
         // Always set parameters instead of caching the existence check, 
         // to prevent bugs if the animator controller is swapped dynamically.
@@ -142,7 +142,10 @@ public class PlayerAnimator : MonoBehaviour
                 case PlayerStateType.DoubleJump:   _animator.SetTrigger(DJUMP_TRIGGER);        break;
                 case PlayerStateType.WallJump:     _animator.SetTrigger(WJUMP_TRIGGER);        break;
                 case PlayerStateType.GroundSlide:  _animator.SetTrigger(SLIDE_TRIGGER);        break;
-                case PlayerStateType.Respawning:   _animator.SetTrigger(RESPAWN_TRIGGER);      break;
+                case PlayerStateType.Respawning:   
+                    _animator.SetTrigger(RESPAWN_TRIGGER);
+                    _animator.SetBool(PLAYER_DEATH, false); // Đảm bảo thoát trạng thái chết
+                    break;
                 case PlayerStateType.DashInAir:    _animator.SetTrigger(DASH_TRIGGER);         break;
                 case PlayerStateType.DashOnGround: _animator.SetTrigger(GROUND_DASH_TRIGGER);  break;
 
@@ -160,7 +163,7 @@ public class PlayerAnimator : MonoBehaviour
                     break;
 
                 case PlayerStateType.Knockback:
-                    _animator.SetTrigger(HURT_TRIGGER);
+                    _animator.SetTrigger(PLAYER_HIT);
                     break;
 
                 case PlayerStateType.Idle:
@@ -187,4 +190,13 @@ public class PlayerAnimator : MonoBehaviour
         PlayerStateType.Idle or PlayerStateType.Walk or PlayerStateType.Run or
         PlayerStateType.CrouchIdle or PlayerStateType.CrouchWalk or
         PlayerStateType.GroundSlide or PlayerStateType.DashOnGround;
+
+    /// <summary>Kích hoạt animation trúng đòn (Player_Hit).</summary>
+    public void TriggerHit()
+    {
+        if (_animator != null)
+        {
+            _animator.SetTrigger(PLAYER_HIT);
+        }
+    }
 }

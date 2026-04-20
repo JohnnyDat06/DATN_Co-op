@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: SO_Footstep_01
   m_EditorClassIdentifier: 
   Clip: {fileID: 8300000, guid: 72f526a6a9890f643a88e85a61c86c8a, type: 3}
-  Volume: 0.5
+  Volume: 1
   PitchMin: 0.9
   PitchMax: 1.1
