@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Game/Scenes/DangScense/Lobby.unity
+    path: Assets/_Game/Scenes/_MainMenu/Lobby.unity
     guid: c293d2af24692e141addabc841df71ba
   - enabled: 1
     path: Assets/_Game/Scenes/DatScense/Player.unity
