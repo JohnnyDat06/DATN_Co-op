@@ -5524,6 +5524,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5723292100841374704}
+  - component: {fileID: 321076691116577025}
+  - component: {fileID: 7656862613090980130}
   m_Layer: 0
   m_Name: TFD_Trap_Saw_03A
   m_TagString: Untagged
@@ -5550,6 +5552,43 @@ Transform:
   - {fileID: 5723292100841374714}
   m_Father: {fileID: 5723292100841374660}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!64 &321076691116577025
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5723292100841480144}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300016, guid: 19de7d4570f05e84cb74efa87af8d4e9, type: 3}
+--- !u!114 &7656862613090980130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5723292100841480144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74a1b14c32fbab34a91c428757b0f31a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  type: 0
+  damageAmount: 10
+  damageInterval: 0.1
 --- !u!1 &5723292100841480146
 GameObject:
   m_ObjectHideFlags: 0
