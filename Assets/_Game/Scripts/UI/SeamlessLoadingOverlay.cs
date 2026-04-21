@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// SeamlessLoadingOverlay — Quản lý màn hình đen và thanh Progress Bar.
@@ -11,6 +12,7 @@ public class SeamlessLoadingOverlay : MonoBehaviour
 
     [SerializeField] private CanvasGroup _canvasGroup;
     [SerializeField] private Slider _progressSlider;
+    [SerializeField] private TextMeshProUGUI _toBeContinuedText;
     [SerializeField] private float _fadeDuration = 0.5f;
 
     private float _targetProgress = 0f;
@@ -31,6 +33,27 @@ public class SeamlessLoadingOverlay : MonoBehaviour
         _canvasGroup.alpha = 0;
         _canvasGroup.blocksRaycasts = false;
         if (_progressSlider != null) _progressSlider.value = 0;
+        if (_toBeContinuedText != null) _toBeContinuedText.gameObject.SetActive(false);
+
+        // Đăng ký sự kiện khi nạp scene mới để tự động dọn dẹp
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        // Nếu quay về Lobby, tự động ẩn màn hình đen và các chữ "To Be Continued"
+        if (scene.name.Contains("Lobby"))
+        {
+            Debug.Log("[SeamlessLoadingOverlay] Lobby detected. Auto-cleaning overlay.");
+            ShowToBeContinued(false);
+            ShowProgressBar(true);
+            FadeOut();
+        }
     }
 
     private void Update()
@@ -42,12 +65,31 @@ public class SeamlessLoadingOverlay : MonoBehaviour
         }
     }
 
+    public void ShowToBeContinued(bool show, string text = "To Be Continued!")
+    {
+        if (_toBeContinuedText != null)
+        {
+            _toBeContinuedText.text = text;
+            _toBeContinuedText.gameObject.SetActive(show);
+        }
+    }
+
+    public void ShowProgressBar(bool show)
+    {
+        if (_progressSlider != null)
+        {
+            _progressSlider.gameObject.SetActive(show);
+        }
+    }
+
     public void FadeIn(System.Action onComplete = null)
     {
         Debug.Log("[SeamlessLoadingOverlay] FadeIn called");
         StopAllCoroutines();
         _targetProgress = 0f;
         if (_progressSlider != null) _progressSlider.value = 0;
+        
+        // Mặc định hiện slider, trừ khi được bảo ẩn đi trước đó
         StartCoroutine(FadeRoutine(1, onComplete));
     }
 

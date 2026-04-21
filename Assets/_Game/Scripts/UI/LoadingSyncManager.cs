@@ -21,6 +21,7 @@ public class LoadingSyncManager : NetworkBehaviour
     {
         if (SeamlessLoadingOverlay.Instance != null)
         {
+            SeamlessLoadingOverlay.Instance.ShowProgressBar(true); // Reset về mặc định
             SeamlessLoadingOverlay.Instance.FadeIn();
             
             // Nếu là Client, hãy bắt đầu mô phỏng tiến trình load
@@ -32,12 +33,33 @@ public class LoadingSyncManager : NetworkBehaviour
     }
 
     [Rpc(SendTo.Everyone)]
+    public void ShowToBeContinuedClientRpc(bool show, string text = "To Be Continued!", bool showProgressBar = true)
+    {
+        if (SeamlessLoadingOverlay.Instance != null)
+        {
+            SeamlessLoadingOverlay.Instance.ShowToBeContinued(show, text);
+            SeamlessLoadingOverlay.Instance.ShowProgressBar(showProgressBar);
+        }
+    }
+
+    [Rpc(SendTo.Everyone)]
+    public void FadeInClientRpc()
+    {
+        if (SeamlessLoadingOverlay.Instance != null)
+        {
+            SeamlessLoadingOverlay.Instance.FadeIn();
+        }
+    }
+
+    [Rpc(SendTo.Everyone)]
     public void EndLoadingFadeClientRpc()
     {
         Debug.Log("<color=green><b>[SYNC] Triggering final FadeOut on all clients!</b></color>");
         if (SeamlessLoadingOverlay.Instance != null)
         {
             SeamlessLoadingOverlay.Instance.SetProgress(1.0f);
+            SeamlessLoadingOverlay.Instance.ShowToBeContinued(false); 
+            SeamlessLoadingOverlay.Instance.ShowProgressBar(true); // Reset lại để dùng cho lần sau
             
             // Đợi thêm một chút để thấy 100% rồi mới mở ra
             StartCoroutine(WaitThenFadeOut());
