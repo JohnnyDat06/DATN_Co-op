@@ -5227,6 +5227,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   _config: {fileID: 11400000, guid: 71adc98f0fcfe3d4cac84e6f7fd339ec, type: 2}
   _fsm: {fileID: 2139253852454988098}
+  _playerAnimator: {fileID: 0}
   NetworkHealth:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
@@ -5478,6 +5479,14 @@ MonoBehaviour:
       NameHash: 1716033290
       Synchronize: 1
       ParameterType: 9
+    - name: Player_Hit
+      NameHash: 1357062738
+      Synchronize: 1
+      ParameterType: 9
+    - name: Player_Death
+      NameHash: -2117772652
+      Synchronize: 1
+      ParameterType: 4
   AnimatorParametersExpanded: 0
 --- !u!114 &3624793998996593354
 MonoBehaviour:
@@ -5580,7 +5589,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  _interactRadius: 3
+  _interactRadius: 4
   _interactableLayerMask:
     serializedVersion: 2
     m_Bits: 640
