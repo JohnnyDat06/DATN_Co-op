@@ -6,6 +6,7 @@ using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using Unity.Networking.Transport.Relay;
 using Unity.Services.Authentication;
+using Unity.Services.Core;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
@@ -22,6 +23,8 @@ namespace Networking.LobbySystem
         private string _playerName;
         private float _pollTimer;
         private float _heartbeatTimer;
+        private bool _isJoiningRelay;
+        private bool _isAuthenticating;
 
         private const string KEY_RELAY_JOIN_CODE = "RelayJoinCode";
         private const string KEY_ROOM_CODE = "RoomCode";
@@ -40,22 +43,36 @@ namespace Networking.LobbySystem
 
         private void Update() 
         { 
-            HandleLobbyPollForUpdates(); 
-            HandleLobbyHeartbeat();
+            if (_currentLobby != null)
+            {
+                // Handle Heartbeat
+                if (_currentLobby.HostId == _playerId)
+                {
+                    _heartbeatTimer -= Time.deltaTime;
+                    if (_heartbeatTimer <= 0f)
+                    {
+                        _heartbeatTimer = 15f;
+                        HandleLobbyHeartbeat();
+                    }
+                }
+
+                // Handle Poll
+                _pollTimer -= Time.deltaTime;
+                if (_pollTimer <= 0f)
+                {
+                    _pollTimer = 1.5f;
+                    HandleLobbyPollForUpdates();
+                }
+            }
         }
 
         private async void HandleLobbyHeartbeat()
         {
-            if (_currentLobby != null && _currentLobby.HostId == _playerId)
+            if (_currentLobby != null)
             {
-                _heartbeatTimer -= Time.deltaTime;
-                if (_heartbeatTimer <= 0f)
-                {
-                    _heartbeatTimer = 15f;
-                    try {
-                        await LobbyService.Instance.SendHeartbeatPingAsync(_currentLobby.Id);
-                    } catch { }
-                }
+                try {
+                    await LobbyService.Instance.SendHeartbeatPingAsync(_currentLobby.Id);
+                } catch { }
             }
         }
 
@@ -63,52 +80,69 @@ namespace Networking.LobbySystem
         {
             if (_currentLobby != null) 
             {
-                _pollTimer -= Time.deltaTime;
-                if (_pollTimer <= 0f) 
-                {
-                    _pollTimer = 1.5f;
-                    try {
-                        _currentLobby = await LobbyService.Instance.GetLobbyAsync(_currentLobby.Id);
-                        OnLobbyJoined?.Invoke(_currentLobby);
+                try {
+                    _currentLobby = await LobbyService.Instance.GetLobbyAsync(_currentLobby.Id);
+                    OnLobbyJoined?.Invoke(_currentLobby);
 
-                        // Nếu là Client và chưa kết nối, hãy kiểm tra Relay Code
-                        if (_currentLobby.HostId != _playerId && NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening && !NetworkManager.Singleton.IsConnectedClient)
+                    // Nếu là Client và chưa kết nối, hãy kiểm tra Relay Code
+                    if (_currentLobby.HostId != _playerId && NetworkManager.Singleton != null && !NetworkManager.Singleton.IsListening && !NetworkManager.Singleton.IsConnectedClient)
+                    {
+                        if (_currentLobby.Data != null && _currentLobby.Data.ContainsKey(KEY_RELAY_JOIN_CODE))
                         {
-                            if (_currentLobby.Data != null && _currentLobby.Data.ContainsKey(KEY_RELAY_JOIN_CODE))
+                            string code = _currentLobby.Data[KEY_RELAY_JOIN_CODE].Value;
+                            if (!string.IsNullOrEmpty(code)) 
                             {
-                                string code = _currentLobby.Data[KEY_RELAY_JOIN_CODE].Value;
-                                if (!string.IsNullOrEmpty(code)) 
-                                {
-                                    Debug.Log($"[LobbyManager] Found Relay Code in Poll: {code}. Connecting...");
-                                    JoinRelay(code);
-                                }
+                                Debug.Log($"[LobbyManager] Found Relay Code in Poll: {code}. Connecting...");
+                                JoinRelay(code);
                             }
                         }
-                    } catch (LobbyServiceException e) { 
-                        Debug.LogWarning($"[LobbyManager] Poll error (Lobby might be gone): {e.Message}");
-                        if (e.Reason == LobbyExceptionReason.LobbyNotFound) {
-                            ForceLeave();
-                        }
-                    } catch (Exception e) {
-                        Debug.LogError($"[LobbyManager] Unexpected poll error: {e.Message}");
                     }
+                } catch (LobbyServiceException e) { 
+                    Debug.LogWarning($"[LobbyManager] Poll error (Lobby might be gone): {e.Message}");
+                    if (e.Reason == LobbyExceptionReason.LobbyNotFound) {
+                        ForceLeave();
+                    }
+                } catch (Exception e) {
+                    Debug.LogError($"[LobbyManager] Unexpected poll error: {e.Message}");
                 }
             }
         }
 
         public async Task Authenticate(string playerName) {
-            _playerName = playerName;
-
-            if (Unity.Services.Core.UnityServices.State == Unity.Services.Core.ServicesInitializationState.Uninitialized) 
-                await Unity.Services.Core.UnityServices.InitializeAsync();
-            
-            if (!AuthenticationService.Instance.IsSignedIn) 
-            {
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            if (_isAuthenticating) {
+                while (_isAuthenticating) await Task.Yield();
+                if (AuthenticationService.Instance.IsSignedIn) return;
             }
 
-            _playerId = AuthenticationService.Instance.PlayerId;
-            Debug.Log($"[LobbyManager] Authenticated (ID: {_playerId}). Name set to: {_playerName}");
+            try {
+                _isAuthenticating = true;
+                _playerName = playerName;
+
+                // 1. Phải khởi tạo Unity Services trước khi chạm vào AuthenticationService
+                if (UnityServices.State == ServicesInitializationState.Uninitialized) 
+                {
+                    await UnityServices.InitializeAsync();
+                }
+                
+                while (UnityServices.State == ServicesInitializationState.Initializing) 
+                {
+                    await Task.Yield();
+                }
+
+                // 2. Bây giờ mới an toàn để truy cập Instance
+                if (!AuthenticationService.Instance.IsSignedIn) 
+                {
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                }
+
+                _playerId = AuthenticationService.Instance.PlayerId;
+                Debug.Log($"[LobbyManager] Authenticated (ID: {_playerId}). Name set to: {_playerName}");
+            } catch (Exception e) {
+                Debug.LogError($"[LobbyManager] Authentication error: {e.Message}");
+                throw;
+            } finally {
+                _isAuthenticating = false;
+            }
         }
 
         private Player GetPlayerData() {
@@ -238,9 +272,13 @@ namespace Networking.LobbySystem
         }
 
         private async void JoinRelay(string code) {
+            if (_isJoiningRelay) return;
+            
             try {
+                if (NetworkManager.Singleton == null) return;
                 if (NetworkManager.Singleton.IsListening || NetworkManager.Singleton.IsConnectedClient) return;
 
+                _isJoiningRelay = true;
                 Debug.Log($"[LobbyManager] Joining Relay with code: {code}");
                 var joinAlloc = await RelayService.Instance.JoinAllocationAsync(code);
                 var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
@@ -248,7 +286,11 @@ namespace Networking.LobbySystem
                     utp.SetRelayServerData(AllocationUtils.ToRelayServerData(joinAlloc, "dtls"));
                     NetworkManager.Singleton.StartClient();
                 }
-            } catch (Exception e) { Debug.LogError($"[LobbyManager] Relay Join Error: {e.Message}"); }
+            } catch (Exception e) { 
+                Debug.LogError($"[LobbyManager] Relay Join Error: {e.Message}"); 
+            } finally {
+                _isJoiningRelay = false;
+            }
         }
 
         public void StartGame(string sceneName) {

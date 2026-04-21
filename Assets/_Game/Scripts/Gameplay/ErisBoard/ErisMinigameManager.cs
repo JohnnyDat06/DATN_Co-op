@@ -146,13 +146,15 @@ public class ErisMinigameManager : NetworkBehaviour
         // Spawn ChessPiece cục bộ trên mỗi máy
         SpawnChessPieceLocal();
 
-        var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
-        if (lp != null) {
-            if(lp.TryGetComponent<Rigidbody>(out var rb)) { if (!rb.isKinematic) rb.linearVelocity = Vector3.zero; rb.isKinematic = true; }
-            if(lp.TryGetComponent<PlayerStateMachine>(out var fsm)) fsm.TransitionTo(PlayerStateType.Idle);
-            Transform standPos = (NetworkManager.Singleton.LocalClientId == controllerId) ? ControllerStandPos : ObserverStandPos;
-            if (standPos != null) { lp.transform.position = standPos.position; lp.transform.rotation = standPos.rotation; }
-            _lockedPositions[NetworkManager.Singleton.LocalClientId] = lp.transform.position; _lockedRotations[NetworkManager.Singleton.LocalClientId] = lp.transform.rotation;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null) {
+            var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
+            if (lp != null) {
+                if(lp.TryGetComponent<Rigidbody>(out var rb)) { if (!rb.isKinematic) rb.linearVelocity = Vector3.zero; rb.isKinematic = true; }
+                if(lp.TryGetComponent<PlayerStateMachine>(out var fsm)) fsm.TransitionTo(PlayerStateType.Idle);
+                Transform standPos = (NetworkManager.Singleton.LocalClientId == controllerId) ? ControllerStandPos : ObserverStandPos;
+                if (standPos != null) { lp.transform.position = standPos.position; lp.transform.rotation = standPos.rotation; }
+                _lockedPositions[NetworkManager.Singleton.LocalClientId] = lp.transform.position; _lockedRotations[NetworkManager.Singleton.LocalClientId] = lp.transform.rotation;
+            }
         }
         CameraPreset preset = (NetworkManager.Singleton.LocalClientId == controllerId) ? CameraPreset.TopDownController : CameraPreset.TopDownObserver;
         if (CameraManager.Instance != null) { CameraManager.Instance.SwitchCamera(preset); StartCoroutine(DelayedCameraSync()); }
@@ -265,13 +267,19 @@ public class ErisMinigameManager : NetworkBehaviour
     private void Update() {
         if (!IsSpawned || !_isGameActive.Value) return;
 
-        var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
-        if (lp != null) {
-            if(_lockedPositions.TryGetValue(NetworkManager.Singleton.LocalClientId, out Vector3 lockPos)) lp.transform.position = lockPos;
-            if(_lockedRotations.TryGetValue(NetworkManager.Singleton.LocalClientId, out Quaternion lockRot)) lp.transform.rotation = lockRot;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null) {
+            var lp = NetworkManager.Singleton.LocalClient.PlayerObject;
+            if (lp != null) {
+                if(_lockedPositions.TryGetValue(NetworkManager.Singleton.LocalClientId, out Vector3 lockPos)) lp.transform.position = lockPos;
+                if(_lockedRotations.TryGetValue(NetworkManager.Singleton.LocalClientId, out Quaternion lockRot)) lp.transform.rotation = lockRot;
+            }
         }
-        if (NetworkManager.Singleton.LocalClientId == _observerId.Value && _isMemorizing.Value && Input.GetKeyDown(KeyCode.E)) ReadyToPlayServerRpc(); 
-        if (NetworkManager.Singleton.LocalClientId == _controllerId.Value && !_isMemorizing.Value && !_isReseting && _canInput) HandleKeyboardInput(); 
+        
+        if (NetworkManager.Singleton != null) {
+            if (NetworkManager.Singleton.LocalClientId == _observerId.Value && _isMemorizing.Value && Input.GetKeyDown(KeyCode.E)) ReadyToPlayServerRpc(); 
+            if (NetworkManager.Singleton.LocalClientId == _controllerId.Value && !_isMemorizing.Value && !_isReseting && _canInput) HandleKeyboardInput(); 
+        }
+        
         if (_allowDebugCheat && (Input.GetKeyDown(KeyCode.Plus) || Input.GetKeyDown(KeyCode.KeypadPlus) || Input.GetKeyDown(KeyCode.Equals))) { _showDebugPath = !_showDebugPath; ToggleDebugPath(_showDebugPath); }
     }
 
