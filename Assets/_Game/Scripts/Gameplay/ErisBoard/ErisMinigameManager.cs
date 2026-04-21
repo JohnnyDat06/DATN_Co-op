@@ -72,23 +72,35 @@ public class ErisMinigameManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        _pieceGridPos.OnValueChanged += (oldVal, newVal) => { 
-            if (newVal.x != -1) {
-                // Đảm bảo piece đã tồn tại trước khi update target
-                if (_spawnedPieceInstance == null) SpawnChessPieceLocal();
-                UpdatePieceTargetSafe(newVal); 
-            }
-        };
+        _pieceGridPos.OnValueChanged += OnPiecePosChanged;
+        _isMemorizing.OnValueChanged += OnMemorizingChanged;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        _pieceGridPos.OnValueChanged -= OnPiecePosChanged;
+        _isMemorizing.OnValueChanged -= OnMemorizingChanged;
         
-        _isMemorizing.OnValueChanged += (oldVal, newVal) => { 
-            if (!newVal) {
-                StopPathLoop();
-                if (_loopingSource != null) { AudioManager.Instance.StopSFX(_loopingSource); _loopingSource = null; }
-                AudioManager.Instance.PlaySFX(ReadyToPlaySFX);
-                if (_idleWaveCoroutine != null) StopCoroutine(_idleWaveCoroutine);
-                _idleWaveCoroutine = StartCoroutine(IdleWaveRoutine());
-            }
-        };
+        if (_loopingSource != null) { try { AudioManager.Instance.StopSFX(_loopingSource); } catch {} _loopingSource = null; }
+    }
+
+    private void OnPiecePosChanged(Vector2Int oldVal, Vector2Int newVal)
+    {
+        if (newVal.x != -1) {
+            if (_spawnedPieceInstance == null) SpawnChessPieceLocal();
+            UpdatePieceTargetSafe(newVal); 
+        }
+    }
+
+    private void OnMemorizingChanged(bool oldVal, bool newVal)
+    {
+        if (!newVal) {
+            StopPathLoop();
+            if (_loopingSource != null) { AudioManager.Instance.StopSFX(_loopingSource); _loopingSource = null; }
+            AudioManager.Instance.PlaySFX(ReadyToPlaySFX);
+            if (_idleWaveCoroutine != null) StopCoroutine(_idleWaveCoroutine);
+            _idleWaveCoroutine = StartCoroutine(IdleWaveRoutine());
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -109,7 +121,9 @@ public class ErisMinigameManager : NetworkBehaviour
     private Vector2Int[] GeneratePathArray()
     {
         List<Vector2Int> path = new List<Vector2Int>(); bool success = false;
-        while (!success) {
+        int outerAttempts = 0;
+        while (!success && outerAttempts < 1000) {
+            outerAttempts++;
             path.Clear(); Vector2Int current = new Vector2Int(Random.Range(0, 10), 0); path.Add(current);
             while (current.y < 9) {
                 List<Vector2Int> moves = new List<Vector2Int>();
@@ -119,7 +133,10 @@ public class ErisMinigameManager : NetworkBehaviour
                         int count = 0;
                         if (path.Contains(m + Vector2Int.up)) count++; if (path.Contains(m + Vector2Int.down)) count++;
                         if (path.Contains(m + Vector2Int.left)) count++; if (path.Contains(m + Vector2Int.right)) count++;
-                        if (count <= 1) moves.Add(m);
+                        
+                        // Relax neighbor constraint after many attempts to ensure a path can be found
+                        int maxNeighbors = (outerAttempts < 300) ? 1 : 2;
+                        if (count <= maxNeighbors) moves.Add(m);
                     }
                 }
                 if (moves.Count == 0) break;
@@ -130,7 +147,11 @@ public class ErisMinigameManager : NetworkBehaviour
                     if (upMoves.Count > 0) current = upMoves[Random.Range(0, upMoves.Count)];
                     else current = moves[Random.Range(0, moves.Count)];
                 }
-                path.Add(current); if (current.y == 9 && path.Count >= 15 && path.Count <= 25) success = true;
+                path.Add(current); 
+                
+                // Relax length constraint after many attempts to prevent hanging
+                bool lengthOk = (outerAttempts < 200) ? (path.Count >= 15 && path.Count <= 25) : (path.Count >= 10);
+                if (current.y == 9 && lengthOk) success = true;
             }
         }
         return path.ToArray();
@@ -239,7 +260,16 @@ public class ErisMinigameManager : NetworkBehaviour
     }
 
     private IEnumerator PathRevealRoutine() {
-        while (_spawnedTiles.Count < 100) yield return null;
+        float timeout = 10f; // Chờ tối đa 10 giây cho tiles spawn xong
+        while (_spawnedTiles.Count < 100 && timeout > 0) {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+        
+        if (_spawnedTiles.Count < 100) {
+            Debug.LogWarning("[ErisMinigameManager] Tiles did not spawn 100 items in time. Starting path reveal anyway.");
+        }
+
         while (true) {
             foreach (var t in _spawnedTiles) t.ResetTile();
             yield return new WaitForSeconds(0.5f); 

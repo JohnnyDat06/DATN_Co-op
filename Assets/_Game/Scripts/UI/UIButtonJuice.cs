@@ -54,7 +54,7 @@ public class UIButtonJuice : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
         StartJuice();
 
         if (hoverSFX != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(hoverSFX);
+            AudioManager.Instance.PlayUISFX(hoverSFX);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -62,6 +62,10 @@ public class UIButtonJuice : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
         _isHovering = false;
         _targetScale = _originalScale;
         StartJuice();
+
+        // Dừng âm thanh ngay lập tức khi rời chuột
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.StopUISFX();
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -70,7 +74,7 @@ public class UIButtonJuice : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
         StartJuice();
 
         if (clickSFX != null && AudioManager.Instance != null)
-            AudioManager.Instance.PlaySFX(clickSFX);
+            AudioManager.Instance.PlayUISFX(clickSFX);
     }
 
     public void OnPointerUp(PointerEventData eventData)

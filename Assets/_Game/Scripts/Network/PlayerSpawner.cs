@@ -85,19 +85,27 @@ namespace Game.Network
             // 3. Đợi vài frame để đảm bảo lệnh Teleport đã tới Client và Physics đã ổn định
             yield return new WaitForSeconds(0.5f);
 
-            // 4. Ra lệnh cho tất cả người chơi mở khóa (Thaw) và mở màn hình FadeOut
-            foreach (var id in clientIds)
+            // 4. Kiểm tra xem có TrailerManager không, nếu có thì kích hoạt Trailer
+            if (Game.Core.TrailerManager.Instance != null)
             {
-                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(id, out var client) && client.PlayerObject != null)
+                Game.Core.TrailerManager.Instance.StartTrailerClientRpc();
+            }
+            else
+            {
+                // Nếu không có trailer, giải phóng nhân vật ngay
+                foreach (var id in clientIds)
                 {
-                    if (client.PlayerObject.TryGetComponent<NGOPlayerSync>(out var playerSync))
+                    if (NetworkManager.Singleton.ConnectedClients.TryGetValue(id, out var client) && client.PlayerObject != null)
                     {
-                        playerSync.ReleasePlayerClientRpc();
+                        if (client.PlayerObject.TryGetComponent<NGOPlayerSync>(out var playerSync))
+                        {
+                            playerSync.ReleasePlayerClientRpc();
+                        }
                     }
                 }
             }
 
-            // 5. Mở màn hình Loading
+            // 5. Mở màn hình Loading (Fade Out cái overlay đen)
             if (LoadingSyncManager.Instance != null)
             {
                 LoadingSyncManager.Instance.EndLoadingFadeClientRpc();
