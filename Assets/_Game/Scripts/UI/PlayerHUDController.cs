@@ -40,6 +40,14 @@ public class PlayerHUDController : MonoBehaviour
 
     private void Update()
     {
+        // Kiểm tra xem có đang ở Lobby không, nếu có thì ẩn HUD
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name.Contains("Lobby"))
+        {
+            if (_hostBarRoot != null && _hostBarRoot.activeSelf) _hostBarRoot.SetActive(false);
+            if (_clientBarRoot != null && _clientBarRoot.activeSelf) _clientBarRoot.SetActive(false);
+            return;
+        }
+
         // Tìm player nếu chưa có
         if (_hostHealth == null || _clientHealth == null)
         {
