@@ -32,6 +32,10 @@ namespace Networking.LobbySystem
         [SerializeField] private Sprite readySprite;
         [SerializeField] private Sprite unreadySprite;
 
+        [Header("Audio Configs")]
+        [SerializeField] private SOAudioClip hoverSFX;
+        [SerializeField] private SOAudioClip clickSFX;
+
         private void Start()
         {
             // Tự động gắn Juice cho tất cả các nút để đỡ phải kéo tay
@@ -233,7 +237,7 @@ namespace Networking.LobbySystem
 
                 if (allReady && players.Length > 0)
                 {
-                    Debug.Log("[LobbyUI] SUCCESS: All players ready. Loading scene LV1...");
+                    Debug.Log("[LobbyUI] SUCCESS: All players ready. Loading scene Map1_Main...");
                     LobbyManager.Instance.StartGame("Map1_Main");
                 }
                 else
@@ -259,10 +263,16 @@ namespace Networking.LobbySystem
 
             foreach (var btn in buttons)
             {
-                if (btn != null && btn.GetComponent<UIButtonJuice>() == null)
+                if (btn != null)
                 {
-                    btn.gameObject.AddComponent<UIButtonJuice>();
-                    Debug.Log($"[LobbyUI] Added Juice to button: {btn.name}");
+                    UIButtonJuice juice = btn.GetComponent<UIButtonJuice>();
+                    if (juice == null) juice = btn.gameObject.AddComponent<UIButtonJuice>();
+                    
+                    // Gán âm thanh từ config của LobbyUI
+                    juice.hoverSFX = hoverSFX;
+                    juice.clickSFX = clickSFX;
+                    
+                    Debug.Log($"[LobbyUI] Added Juice and SFX to button: {btn.name}");
                 }
             }
         }
