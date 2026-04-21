@@ -8,22 +8,22 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Game/Scenes/_MainMenu/Lobby.unity
     guid: c293d2af24692e141addabc841df71ba
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/DatScense/Player.unity
     guid: b489e1d42faa04e4f837201780304f99
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/DangScense/LV1.unity
     guid: d89d22a3767cc0446a97152eed9f3cad
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/ThuScense/Map1.unity
     guid: cd7b8fddc8425f64fb595c76ea8fc9a7
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/DatScense/Map1.unity
     guid: 40cf1af273bb6eb4fa2bc5ae1436d303
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/ThuanScense/ThuanSandbox.unity
     guid: 4e1b15ad38afb7f4893b2cc99e3c0b42
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/ThuScense/MapDemo.unity
     guid: 06689bd92c7c8f941ace6bd93011f3b2
   - enabled: 1
@@ -32,7 +32,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Game/Scenes/_Core/Map2_Main.unity
     guid: bf3781b8ff2a6fb4b803a75f7e0a83b8
-  - enabled: 1
+  - enabled: 0
     path: Assets/_Game/Scenes/ThuanScense/Map1_Thuan.unity
     guid: 175e8bc73d0d9d842bdd4202ae609f1c
   m_configObjects:

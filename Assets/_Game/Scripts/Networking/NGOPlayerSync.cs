@@ -53,24 +53,36 @@ public class NGOPlayerSync : NetworkBehaviour
         // Mặc định đóng băng khi mới sinh ra (trừ khi đang test map trực tiếp)
         _isFrozenBySystem = !IsTestMode();
         _hasReceivedInitialTeleport = false;
+
+        if (_rigidbody != null)
+        {
+            _rigidbody.linearVelocity = Vector3.zero;
+            _rigidbody.isKinematic = true;
+        }
+
         ApplyAuthorityState();
-        
         _hasAppliedSpawnState = true;
 
         // Nếu là Owner, hãy báo cáo cho Server ngay khi Spawn
         if (IsOwner && !IsTestMode())
         {
-            ReportReadyToServerRpc();
+            StartCoroutine(DelayedInitialReport());
         }
+    }
+
+    private IEnumerator DelayedInitialReport()
+    {
+        yield return new WaitForSeconds(0.1f);
+        ReportReadyToServerRpc();
     }
 
     public override void OnNetworkDespawn()
     {
-        base.OnNetworkDespawn();
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
         {
             NetworkManager.Singleton.SceneManager.OnLoadComplete -= HandleSceneLoaded;
         }
+        base.OnNetworkDespawn();
     }
 
     private void HandleSceneLoaded(ulong clientId, string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode)
@@ -79,6 +91,8 @@ public class NGOPlayerSync : NetworkBehaviour
 
         // Khi nạp cảnh mới, đóng băng ngay lập tức (trừ khi test map)
         _isFrozenBySystem = !IsTestMode();
+        _hasReceivedInitialTeleport = false;
+        
         ApplyAuthorityState();
 
         // Báo cho Server biết tôi đã nạp xong Map
@@ -91,10 +105,12 @@ public class NGOPlayerSync : NetworkBehaviour
     [ServerRpc]
     private void ReportReadyToServerRpc(ServerRpcParams rpcParams = default)
     {
+        var senderId = rpcParams.Receive.SenderClientId;
+        Debug.Log($"[NGOPlayerSync] Server received Ready from client: {senderId}");
         // Gửi tín hiệu cho PlayerSpawner
         if (Game.Network.PlayerSpawner.Instance != null)
         {
-            Game.Network.PlayerSpawner.Instance.ReportPlayerReady(rpcParams.Receive.SenderClientId);
+            Game.Network.PlayerSpawner.Instance.ReportPlayerReady(senderId);
         }
     }
 
@@ -137,24 +153,24 @@ public class NGOPlayerSync : NetworkBehaviour
         if (_isTeleporting) yield break;
         _isTeleporting = true;
         
-        Vector3 safePosition = position + Vector3.up * 0.3f;
+        // Đưa lên cao 0.15f thay vì 0.3f để mượt hơn nhưng vẫn tránh kẹt sàn
+        Vector3 safePosition = position + Vector3.up * 0.15f;
 
         if (_rigidbody != null)
         {
-            _rigidbody.interpolation = RigidbodyInterpolation.None;
             _rigidbody.linearVelocity = Vector3.zero;
+            _rigidbody.angularVelocity = Vector3.zero;
             _rigidbody.isKinematic = true; 
         }
 
         transform.SetPositionAndRotation(safePosition, rotation);
         if (_networkTransform != null) _networkTransform.Teleport(safePosition, rotation, transform.localScale);
 
-        // Đợi Physics ổn định
-        int framesToWait = 20; 
+        // Đợi Physics ổn định - giảm số lượng frame đợi để giảm lag
+        int framesToWait = 5; 
         while (framesToWait > 0)
         {
             if (this == null) yield break;
-            transform.position = safePosition;
             framesToWait--;
             yield return new WaitForFixedUpdate(); 
         }
