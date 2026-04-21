@@ -122,7 +122,7 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
             anim.SetTrigger("IsDead");
         }
 
-        // 2. Ẩn thanh máu UI
+        // 2. Ẩn thanh máu UI (Kiểm tra kỹ trước khi tắt)
         if (_healthBarUI != null)
         {
             _healthBarUI.SetActive(false);
@@ -162,6 +162,13 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
         if (move != null)
         {
             move.enabled = false;
+        }
+
+        // Tắt script chiến đấu
+        var combat = GetComponent<EnemyCombat>();
+        if (combat != null)
+        {
+            combat.enabled = false;
         }
 
         // Tắt Root Motion để không bị trượt theo anim
