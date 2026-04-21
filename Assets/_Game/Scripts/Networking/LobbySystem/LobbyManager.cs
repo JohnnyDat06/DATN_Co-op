@@ -256,12 +256,14 @@ namespace Networking.LobbySystem
             try {
                 if (RelayService.Instance == null || NetworkManager.Singleton == null) return null;
 
-                var allocation = await RelayService.Instance.CreateAllocationAsync(2);
+                // Tăng lên 4 slots để thoải mái hơn cho game 2 người (1 host + 3 slots)
+                var allocation = await RelayService.Instance.CreateAllocationAsync(3);
                 var code = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
                 
                 var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
                 if (utp != null) {
-                    utp.SetRelayServerData(AllocationUtils.ToRelayServerData(allocation, "dtls"));
+                    // Dùng "udp" thay cho "dtls" để tránh bị chặn bởi Firewall/Router
+                    utp.SetRelayServerData(AllocationUtils.ToRelayServerData(allocation, "udp"));
                     NetworkManager.Singleton.StartHost();
                     return code;
                 }
@@ -273,22 +275,30 @@ namespace Networking.LobbySystem
 
         private async void JoinRelay(string code) {
             if (_isJoiningRelay) return;
+            if (string.IsNullOrEmpty(code)) return;
             
             try {
                 if (NetworkManager.Singleton == null) return;
+                // Nếu đã đang kết nối hoặc đã kết nối rồi thì bỏ qua
                 if (NetworkManager.Singleton.IsListening || NetworkManager.Singleton.IsConnectedClient) return;
 
                 _isJoiningRelay = true;
-                Debug.Log($"[LobbyManager] Joining Relay with code: {code}");
+                Debug.Log($"[LobbyManager] Attempting to join Relay with code: {code}");
+                
                 var joinAlloc = await RelayService.Instance.JoinAllocationAsync(code);
                 var utp = NetworkManager.Singleton.GetComponent<UnityTransport>();
                 if (utp != null) {
-                    utp.SetRelayServerData(AllocationUtils.ToRelayServerData(joinAlloc, "dtls"));
-                    NetworkManager.Singleton.StartClient();
+                    utp.SetRelayServerData(AllocationUtils.ToRelayServerData(joinAlloc, "udp"));
+                    bool success = NetworkManager.Singleton.StartClient();
+                    if (!success) {
+                        Debug.LogError("[LobbyManager] NetworkManager failed to StartClient");
+                    }
                 }
             } catch (Exception e) { 
                 Debug.LogError($"[LobbyManager] Relay Join Error: {e.Message}"); 
             } finally {
+                // Đợi một chút rồi mới cho phép join lại nếu thất bại
+                await Task.Delay(1000);
                 _isJoiningRelay = false;
             }
         }

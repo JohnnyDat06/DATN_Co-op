@@ -49,39 +49,57 @@ public class SceneLoader : MonoBehaviour
         }
     }
 
+    private string _loadingSceneName;
+    private bool _allClientsReady;
+
     private IEnumerator LoadSceneCoroutine(string sceneName)
     {
         Debug.Log($"<color=yellow>[HOST] Loading scene: {sceneName}</color>");
         if (SeamlessLoadingOverlay.Instance != null) SeamlessLoadingOverlay.Instance.SetProgress(0f);
 
-        bool allClientsReady = false;
+        _allClientsReady = false;
+        _loadingSceneName = sceneName;
 
         if (NetworkManager.Singleton.IsServer)
         {
+            NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += HandleLoadEventCompleted;
             var status = NetworkManager.Singleton.SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
-            if (status == SceneEventProgressStatus.Started)
+            
+            if (status != SceneEventProgressStatus.Started)
             {
-                // Đợi cho đến khi TẤT CẢ mọi người (bao gồm Client) load xong
-                NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += (name, mode, clients, timedOut) => {
-                    if (name == sceneName) allClientsReady = true;
-                };
+                Debug.LogError($"[SceneLoader] Failed to start scene load: {status}");
+                NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= HandleLoadEventCompleted;
+                _allClientsReady = true; // Giải phóng để không treo game
             }
         }
 
         float fakeProgress = 0f;
-        while (!allClientsReady)
+        float timeout = 20f; // Timeout sau 20 giây nếu không load được
+        while (!_allClientsReady && timeout > 0)
         {
             fakeProgress = Mathf.MoveTowards(fakeProgress, 0.9f, Time.deltaTime * 0.4f);
             if (SeamlessLoadingOverlay.Instance != null) SeamlessLoadingOverlay.Instance.SetProgress(fakeProgress);
+            timeout -= Time.deltaTime;
             yield return null;
         }
 
-        // Đã xong phần Load Scene! 
-        // LƯU Ý: Chúng ta KHÔNG gọi LoadingSyncManager.Instance.EndLoadingFadeClientRpc() ở đây nữa.
-        // Quyền này sẽ được nhường cho PlayerSpawner sau khi nó đã Teleport toàn bộ người chơi xong.
+        if (timeout <= 0) Debug.LogWarning("[SceneLoader] Scene load timed out!");
+
         Debug.Log("<color=green>[HOST] Scene loaded. Waiting for PlayerSpawner to position everyone...</color>");
 
         if (_gameStateMachine != null) _gameStateMachine.TransitionTo(GameState.Playing);
+    }
+
+    private void HandleLoadEventCompleted(string sceneName, LoadSceneMode loadSceneMode, System.Collections.Generic.List<ulong> clientsCompleted, System.Collections.Generic.List<ulong> clientsTimedOut)
+    {
+        if (sceneName == _loadingSceneName)
+        {
+            _allClientsReady = true;
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+            {
+                NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= HandleLoadEventCompleted;
+            }
+        }
     }
 
     public void LoadMainMenu()
