@@ -61,6 +61,15 @@ namespace Networking.LobbySystem
             LobbyManager.Instance.OnLobbyLeft += ShowMainMenu;
         }
 
+        private void OnDestroy()
+        {
+            if (LobbyManager.Instance != null)
+            {
+                LobbyManager.Instance.OnLobbyJoined -= UpdateRoomUI;
+                LobbyManager.Instance.OnLobbyLeft -= ShowMainMenu;
+            }
+        }
+
         private void OnPlayerNameChanged(string newName)
         {
             UpdateMainMenuButtonsState();
