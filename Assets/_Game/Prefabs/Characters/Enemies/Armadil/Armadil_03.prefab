@@ -713,9 +713,9 @@ GameObject:
   - component: {fileID: 3323220837810691436}
   - component: {fileID: 5067886362296254079}
   - component: {fileID: 8027921509639471656}
-  - component: {fileID: 2958308998179078148}
   - component: {fileID: 346255805033013602}
   - component: {fileID: 3246291957485215376}
+  - component: {fileID: 8493268937589810408}
   m_Layer: 8
   m_Name: Armadil_03_Obj
   m_TagString: Untagged
@@ -992,26 +992,6 @@ MonoBehaviour:
     m_Bits: 1
   playerVariableName: Player
   detectedVariableName: IsDetected
---- !u!114 &2958308998179078148
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3738424652355155043}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fd21ee62280462247aea6324afe96bb1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowTopMostFoldoutHeaderGroup: 1
-  _maxHealth: 100
-  _healthBarUI: {fileID: 3603063722946994123}
-  CurrentHealth:
-    UpdateTraits:
-      MinSecondsBetweenUpdates: 0
-      MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 100
 --- !u!136 &346255805033013602
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1032,9 +1012,9 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.5
-  m_Height: 1.8856343
+  m_Height: 1.5
   m_Direction: 1
-  m_Center: {x: 0, y: 0.44281715, z: 0}
+  m_Center: {x: 0, y: 0.86, z: 0}
 --- !u!114 &3246291957485215376
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1073,6 +1053,30 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
+--- !u!114 &8493268937589810408
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3738424652355155043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd21ee62280462247aea6324afe96bb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  _maxHealth: 100
+  _healthBarUI: {fileID: 7198938153540252350}
+  _gravity: 9.81
+  _groundLayer:
+    serializedVersion: 2
+    m_Bits: 65
+  CurrentHealth:
+    UpdateTraits:
+      MinSecondsBetweenUpdates: 0
+      MaxSecondsBetweenUpdates: 0
+    m_InternalValue: 100
 --- !u!1 &4244529601087781839
 GameObject:
   m_ObjectHideFlags: 0
@@ -1585,7 +1589,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6b86c5fd22a9b64c87ebf8e9c2bbaa2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _enemyHealth: {fileID: 2958308998179078148}
+  _enemyHealth: {fileID: 8493268937589810408}
   _enemyCombat: {fileID: 3246291957485215376}
   _healthSlider: {fileID: 312739602461108777}
   _uiContainer: {fileID: 3603063722946994123}

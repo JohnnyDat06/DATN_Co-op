@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// WindProjectile — Xử lý logic di chuyển, va chạm và sát thương của đạn gió.
-/// Đảm bảo đồng bộ mượt mà qua mạng (NGO).
+/// Đảm bảo đồng bộ mượt mà qua mạng (NGO) bằng cách sử dụng Server-authoritative movement.
 /// </summary>
 public class WindProjectile : NetworkBehaviour
 {
@@ -14,32 +14,70 @@ public class WindProjectile : NetworkBehaviour
     [SerializeField] private LayerMask _hitLayers;
 
     [Header("VFX Settings")]
-    [Tooltip("Object hiệu ứng nổ có sẵn trong Prefab")]
     [SerializeField] private GameObject _impactVFX;
-    
-    [Tooltip("Mesh hoặc các thành phần chính của đạn để ẩn đi khi nổ")]
     [SerializeField] private GameObject _projectileMesh;
 
+    // Sử dụng NetworkVariable để đồng bộ trạng thái nổ cho cả người chơi mới vào
+    private NetworkVariable<bool> _isExplodedSync = new NetworkVariable<bool>(
+        false, 
+        NetworkVariableReadPermission.Everyone, 
+        NetworkVariableWritePermission.Server
+    );
+
     private float _timer;
-    private bool _isExploded = false;
 
     public override void OnNetworkSpawn()
     {
-        base.OnNetworkSpawn();
         _timer = 0;
-        _isExploded = false;
-        if (_impactVFX != null) _impactVFX.SetActive(false);
         
-        // Tạm ẩn mesh trong frame đầu tiên để tránh vệt kéo dài
-        if (_projectileMesh != null) _projectileMesh.SetActive(false);
-        Invoke(nameof(ShowMesh), 0.05f); // Bật lại sau một khoảng thời gian rất ngắn
+        // Đăng ký sự kiện thay đổi trạng thái nổ
+        _isExplodedSync.OnValueChanged += OnExplodedChanged;
         
-        ClearVFXBuffers();
+        // Trạng thái khởi tạo
+        ApplyExplosionState(_isExplodedSync.Value);
+
+        if (!_isExplodedSync.Value)
+        {
+            ClearVFXBuffers();
+            // Tạm ẩn mesh để tránh vệt kéo dài khi vừa spawn (do NetworkTransform đồng bộ chậm 1 frame)
+            if (_projectileMesh != null) _projectileMesh.SetActive(false);
+            Invoke(nameof(ShowMesh), 0.05f);
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        _isExplodedSync.OnValueChanged -= OnExplodedChanged;
+    }
+
+    private void OnExplodedChanged(bool oldVal, bool newVal)
+    {
+        if (newVal)
+        {
+            ApplyExplosionState(true);
+        }
+    }
+
+    private void ApplyExplosionState(bool exploded)
+    {
+        if (exploded)
+        {
+            if (_projectileMesh != null) _projectileMesh.SetActive(false);
+            if (_impactVFX != null) _impactVFX.SetActive(true);
+            
+            // Tắt va chạm trên mọi máy khi đã nổ
+            if (TryGetComponent<Collider>(out var col)) col.enabled = false;
+        }
+        else
+        {
+            if (_projectileMesh != null) _projectileMesh.SetActive(true);
+            if (_impactVFX != null) _impactVFX.SetActive(false);
+        }
     }
 
     private void ShowMesh()
     {
-        if (!_isExploded && _projectileMesh != null)
+        if (!_isExplodedSync.Value && _projectileMesh != null)
         {
             _projectileMesh.SetActive(true);
         }
@@ -47,9 +85,10 @@ public class WindProjectile : NetworkBehaviour
 
     private void Update()
     {
-        if (_isExploded) return;
+        if (_isExplodedSync.Value) return;
 
-        // Cả Client và Server đều tự di chuyển
+        // Di chuyển: Server di chuyển thực tế, Client di chuyển để dự đoán (Visual only)
+        // Nếu dùng NetworkTransform trên Prefab, Client sẽ được nội suy vị trí từ Server
         transform.Translate(Vector3.forward * _speed * Time.deltaTime);
 
         if (!IsServer) return;
@@ -63,51 +102,35 @@ public class WindProjectile : NetworkBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!IsServer || _isExploded) return;
+        // Chỉ Server xử lý va chạm và sát thương
+        if (!IsServer || _isExplodedSync.Value) return;
 
-        // Kiểm tra xem có va chạm với layer mục tiêu (Player, Environment) không
         if (((1 << other.gameObject.layer) & _hitLayers) != 0)
         {
-            _isExploded = true;
+            _isExplodedSync.Value = true;
 
-            // Nếu trúng Player (IDamageable), gây sát thương
             if (other.TryGetComponent<IDamageable>(out var damageable))
             {
                 damageable.TakeDamage(_damage);
             }
 
-            // Kích hoạt hiệu ứng nổ trên tất cả Client (bao gồm cả Host)
-            ExplodeClientRpc(transform.position);
-
-            // Phá hủy đạn sau va chạm
-            Invoke(nameof(DespawnProjectile), 1.5f);
+            // Đợi hiệu ứng chạy xong rồi mới biến mất hoàn toàn trên Server
+            StartCoroutine(ServerDespawnTimer(1.5f));
         }
+    }
+
+    private System.Collections.IEnumerator ServerDespawnTimer(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        DespawnProjectile();
     }
 
     private void DespawnProjectile()
     {
-        if (IsSpawned)
+        if (IsServer && IsSpawned)
         {
-            GetComponent<NetworkObject>().Despawn();
+            NetworkObject.Despawn();
         }
-    }
-
-    /// <summary>
-    /// Đồng bộ việc kích hoạt hiệu ứng nổ cho mọi Client.
-    /// </summary>
-    [ClientRpc]
-    private void ExplodeClientRpc(Vector3 impactPosition)
-    {
-        _isExploded = true;
-        
-        // Đưa về vị trí nổ chuẩn của Server
-        transform.position = impactPosition;
-        
-        // Ẩn mesh đạn và bật hiệu ứng nổ
-        if (_projectileMesh != null) _projectileMesh.SetActive(false);
-        if (_impactVFX != null) _impactVFX.SetActive(true);
-        
-        Debug.Log($"[WindProjectile] Explosion at {impactPosition}");
     }
 
     private void ClearVFXBuffers()
