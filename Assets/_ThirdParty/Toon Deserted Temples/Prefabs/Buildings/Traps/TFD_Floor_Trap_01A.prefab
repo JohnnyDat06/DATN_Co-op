@@ -5143,6 +5143,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1531061192362705032}
+  - component: {fileID: 1709135023223744287}
+  - component: {fileID: 7029482805899789850}
   m_Layer: 0
   m_Name: TFD_Floor_Trap_Spikes_01A
   m_TagString: Untagged
@@ -5169,6 +5171,43 @@ Transform:
   - {fileID: 1531061192362705042}
   m_Father: {fileID: 1531061192362705028}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1709135023223744287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531061192362941608}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74a1b14c32fbab34a91c428757b0f31a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  type: 1
+  damageAmount: 75
+  damageInterval: 0.5
+--- !u!64 &7029482805899789850
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531061192362941608}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300000, guid: ed4cbe59095e40448a0294fbad55c795, type: 3}
 --- !u!1 &1531061192362941612
 GameObject:
   m_ObjectHideFlags: 0
