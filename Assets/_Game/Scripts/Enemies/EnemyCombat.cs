@@ -39,9 +39,13 @@ public class EnemyCombat : NetworkBehaviour
     [SerializeField] private float _radius = 1.0f;
     [SerializeField] private int _damage = 20;
 
-    [Header("Ranged Settings")]
+	[Header("Ranged Settings")]
     [SerializeField] private GameObject _projectilePrefab;
     [SerializeField] private Transform _firePoint;
+
+	[Header("VFX Settings")]
+    [Tooltip("Gán Particle System của móng vuốt vào đây (đối tượng con đã có sẵn trên quái)")]
+    [SerializeField] private ParticleSystem _clawVFX;
 
     private BehaviorGraphAgent _agent;
     private float _activeTimer = 0f;
@@ -50,6 +54,12 @@ public class EnemyCombat : NetworkBehaviour
     private void Awake()
     {
         _agent = GetComponent<BehaviorGraphAgent>();
+        
+        // Đảm bảo VFX tắt lúc đầu
+        if (_clawVFX != null)
+        {
+            _clawVFX.Stop();
+        }
     }
 
     private void Update()
@@ -140,6 +150,19 @@ public class EnemyCombat : NetworkBehaviour
         if (!IsServer) return;
         _activeTimer = duration;
         _hitHistory.Clear();
+
+        // Kích hoạt hiệu ứng trên toàn bộ các máy khách
+        PlayClawVFXClientRpc();
+    }
+
+    [ClientRpc]
+    private void PlayClawVFXClientRpc()
+    {
+        if (_clawVFX != null)
+        {
+            _clawVFX.Stop(); // Đảm bảo restart nếu đang chạy dở
+            _clawVFX.Play();
+        }
     }
 
     private void CheckForMeleeTargets()
