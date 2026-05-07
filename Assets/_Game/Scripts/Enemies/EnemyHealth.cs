@@ -165,7 +165,7 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
         }
 
         // Tắt script chiến đấu
-        var combat = GetComponent<EnemyCombat>();
+        var combat = GetComponent<EnemyCombatBase>();
         if (combat != null)
         {
             combat.enabled = false;

@@ -1025,7 +1025,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 3738424652355155043}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78052cb85b9af794f848213ab5a92c63, type: 3}
+  m_Script: {fileID: 11500000, guid: 59ebc05f2947c6a4dbb6d71358948683, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
@@ -1042,14 +1042,8 @@ MonoBehaviour:
   _playerVariableName: Player
   _detectedVariableName: IsDetected
   _rotationSpeed: 360
-  _targetLayer:
-    serializedVersion: 2
-    m_Bits: 8
-  _radius: 1.8
-  _damage: 13
-  _projectilePrefab: {fileID: 0}
-  _firePoint: {fileID: 0}
-  _clawVFX: {fileID: 7428404990831577392}
+  _attackConfig: {fileID: 0}
+  _attackVFX: {fileID: 7428404990831577392}
   references:
     version: 2
     RefIds:
@@ -1592,7 +1586,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _enemyHealth: {fileID: 8493268937589810408}
-  _enemyCombat: {fileID: 3246291957485215376}
+  _enemyCombat: {fileID: 0}
   _healthSlider: {fileID: 312739602461108777}
   _uiContainer: {fileID: 3603063722946994123}
   _faceCamera: 1
