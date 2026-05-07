@@ -3,13 +3,13 @@ using UnityEngine.UI;
 
 /// <summary>
 /// EnemyHealthBar — Quản lý thanh máu UI phía trên đầu quái.
-/// Tự động ẩn/hiện dựa trên trạng thái phát hiện của EnemyCombat.
+/// Tự động ẩn/hiện dựa trên trạng thái phát hiện của EnemyCombatBase.
 /// </summary>
 public class EnemyHealthBar : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private EnemyHealth _enemyHealth;
-    [SerializeField] private EnemyCombat _enemyCombat;
+    [SerializeField] private EnemyCombatBase _enemyCombat;
     [SerializeField] private Slider _healthSlider;
     [SerializeField] private GameObject _uiContainer; // Nhóm chứa toàn bộ UI để ẩn/hiện
 
@@ -45,7 +45,7 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void Update()
     {
-        // 1. Đồng bộ ẩn/hiện với trạng thái IsDetected từ EnemyCombat
+        // 1. Đồng bộ ẩn/hiện với trạng thái IsDetected từ EnemyCombatBase
         HandleVisibility();
 
         // 2. Luôn xoay mặt về phía Camera (Billboarding)

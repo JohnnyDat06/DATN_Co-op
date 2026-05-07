@@ -11,13 +11,13 @@ public partial class SetCombatTargetAction : Action
     [SerializeReference] public BlackboardVariable<GameObject> Target;
     [SerializeReference] public BlackboardVariable<bool> IsDetected;
 
-    private EnemyCombat _combat;
+    private EnemyCombatBase _combat;
 
     protected override Status OnStart()
     {
         if (_combat == null)
         {
-            _combat = GameObject.GetComponent<EnemyCombat>();
+            _combat = GameObject.GetComponent<EnemyCombatBase>();
         }
 
         if (_combat != null && Target != null)

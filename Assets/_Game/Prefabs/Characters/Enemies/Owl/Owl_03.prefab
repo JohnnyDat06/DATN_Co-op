@@ -2938,7 +2938,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _enemyHealth: {fileID: 7752976721430704642}
-  _enemyCombat: {fileID: 1345334503898517619}
+  _enemyCombat: {fileID: 0}
   _healthSlider: {fileID: 1632056980411779400}
   _uiContainer: {fileID: 5586816443816572318}
   _faceCamera: 1
@@ -4475,7 +4475,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 8474068088016969157}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78052cb85b9af794f848213ab5a92c63, type: 3}
+  m_Script: {fileID: 11500000, guid: 3203fab2d67a80d49af85fb85a2e85e3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
@@ -4492,12 +4492,7 @@ MonoBehaviour:
   _playerVariableName: Player
   _detectedVariableName: IsDetected
   _rotationSpeed: 360
-  _targetLayer:
-    serializedVersion: 2
-    m_Bits: 8
-  _radius: 1.24
-  _damage: 12
-  _projectilePrefab: {fileID: 8980800682380711659, guid: 0225405b17d249a4e858cc09dfd82733, type: 3}
+  _attackConfig: {fileID: 0}
   _firePoint: {fileID: 7857823338348770790}
   references:
     version: 2
