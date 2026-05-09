@@ -78,6 +78,12 @@ public class ArmadilCombat : EnemyCombatBase
             _attackVFX.Stop(); // Đảm bảo restart nếu đang chạy dở
             _attackVFX.Play();
         }
+
+        // Phát âm thanh tấn công
+        if (_attackConfig != null && _attackConfig.attackSFX != null)
+        {
+            AudioManager.Instance.PlaySFX(_attackConfig.attackSFX, transform.position);
+        }
     }
     #endregion
 
