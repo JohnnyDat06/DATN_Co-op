@@ -21,6 +21,10 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
     [SerializeField] private float _gravity = 9.81f;
     [SerializeField] private LayerMask _groundLayer;
 
+    [Header("Audio Settings")]
+    [SerializeField] protected SOAudioClip _hurtSFX;
+    [SerializeField] protected SOAudioClip _deathSFX;
+
     // Biến đồng bộ qua mạng. Server có quyền Ghi, mọi Client đều tự động Đọc (Sync).
     public NetworkVariable<int> CurrentHealth = new NetworkVariable<int>(
         100, 
@@ -57,7 +61,28 @@ public abstract class EnemyHealth : NetworkBehaviour, IDamageableEnemy
         // Quái hết máu
         if (newVal <= 0 && oldVal > 0)
         {
+            PlayDeathSFX();
             Die();
+        }
+        else if (newVal < oldVal)
+        {
+            PlayHurtSFX();
+        }
+    }
+
+    private void PlayHurtSFX()
+    {
+        if (_hurtSFX != null)
+        {
+            AudioManager.Instance.PlaySFX(_hurtSFX, transform.position);
+        }
+    }
+
+    private void PlayDeathSFX()
+    {
+        if (_deathSFX != null)
+        {
+            AudioManager.Instance.PlaySFX(_deathSFX, transform.position);
         }
     }
 

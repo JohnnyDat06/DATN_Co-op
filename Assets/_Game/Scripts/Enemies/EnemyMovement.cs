@@ -28,6 +28,10 @@ public class EnemyMovement : NetworkBehaviour
     [Header("State Control")]
     [Tooltip("Cờ xác định enemy đang đi bộ hay chạy.")]
     [SerializeField] protected bool _isRunning = false;
+
+    [Header("Audio Settings")]
+    [Tooltip("Danh sách âm thanh bước chân.")]
+    [SerializeField] protected SOAudioClip[] _footstepSFXs;
     #endregion
 
     #region Internal State
@@ -152,6 +156,20 @@ public class EnemyMovement : NetworkBehaviour
 
         _animator.speed = 1f; // Reset về tốc độ chuẩn khi Idle
         _animator.SetFloat(_hashSpeed, 0, 0.1f, Time.deltaTime);
+    }
+
+    /// <summary>
+    /// Gọi từ Animation Event để phát âm thanh bước chân.
+    /// </summary>
+    public void PlayFootstep()
+    {
+        if (_footstepSFXs == null || _footstepSFXs.Length == 0) return;
+
+        int index = Random.Range(0, _footstepSFXs.Length);
+        if (_footstepSFXs[index] != null)
+        {
+            AudioManager.Instance.PlaySFX(_footstepSFXs[index], transform.position);
+        }
     }
     #endregion
 

@@ -16,4 +16,8 @@ public class SOEnemyMeleeAttackConfig : ScriptableObject
 
     [Tooltip("Sát thương mỗi đòn")]
     public int damage = 20;
+
+    [Header("Audio Settings")]
+    [Tooltip("Âm thanh khi thực hiện đòn tấn công")]
+    public SOAudioClip attackSFX;
 }
